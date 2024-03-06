@@ -15,7 +15,8 @@ STATEGAMEOVER  = $02  ; displaying game over screen
 ;variable
 pointerLo: .res 1   ; pointer variables are declared in RAM
 pointerHi:  .res 1   ; low byte first, high byte immediately after
-buttons1: .res 1
+buttonsInstant: .res 1
+buttonsPressed: .res 1
 scrolly: .res 1
 direction: .res 1
 tempnybble: .res 1
@@ -37,8 +38,11 @@ RESET:
   STA backgroundID
 
   JSR LoadPalette
-  JSR LoadDownScreen
-  JSR LoadBackground4
+  LDA #<background4
+  STA pointerLo
+  LDA #>background4
+  STA pointerHi
+  JSR LoadBackground
 
   LDA #%10010000
   STA PPU_CTRL
@@ -62,29 +66,24 @@ NMI:
   STA PPU_SCROLL
   LDA scrolly
   STA PPU_SCROLL
-
-
-    ;;;all graphics updates done by PPU here
   JSR ReadController1  ;;get the current button data for player 1
+  JSR checkForPressedBtn
 
 ReadUp:
-  LDA buttons1
+  LDA buttonsInstant
   AND #$08
-  BEQ ReadUpDone
-  LDA timer
-  CMP #$00
-  BNE RD
+  BEQ ReadDown
   LDA direction
   CMP #$18
-  BEQ ReadUpDone
+  BEQ ReadDown
   CMP #$82
-  BEQ ReadUpDone
+  BEQ ReadDown
   AND #$0F
   STA tempnybble
   CMP #$04
-  BEQ ReadUpDone
+  BEQ ReadDown
   CMP #$01
-  BEQ ReadUpDone
+  BEQ ReadDown
   CMP #$08
   BEQ coteNord
   LDA direction
@@ -100,30 +99,26 @@ coteNord:
   ORA tempnybble
   STA direction
 moveforward:
-   JSR LoadBackgroundIndex
-   LDA #$30
-   STA timer
-RD:JMP ReadDone
-ReadUpDone:
+  JSR LoadBackgroundIndex
+  LDA #$30
+  STA timer
+  JMP ReadDone
 
 ReadDown:
-  LDA buttons1
+  LDA buttonsInstant
   AND #$04
-  BEQ ReadDownDone
-  LDA timer
-  CMP #$00
-  BNE RD2
+  BEQ ReadLeft
   LDA direction
   CMP #$12
-  BEQ ReadDownDone
+  BEQ ReadLeft
   CMP #$88
-  BEQ ReadDownDone
+  BEQ ReadLeft
   AND #$0F
   STA tempnybble
   CMP #$04
-  BEQ ReadDownDone
+  BEQ ReadLeft
   CMP #$01
-  BEQ ReadDownDone
+  BEQ ReadLeft
   CMP #$02
   BEQ coteSud
   LDA direction
@@ -139,19 +134,15 @@ coteSud:
   ORA tempnybble
   STA direction
 moveback:
-    JSR LoadBackgroundIndex
-    LDA #$30
-    STA timer
-RD2:JMP ReadDone
-ReadDownDone:
+  JSR LoadBackgroundIndex
+  LDA #$30
+  STA timer
+  JMP ReadDone
 
 ReadLeft:
-  LDA buttons1
+  LDA buttonsInstant
   AND #$02
-  BEQ ReadLeftDone
-  LDA timer
-  CMP #$00
-  BNE ReadDone
+  BEQ ReadRight
   LDA direction
   AND #$F0
   STA tempnybble
@@ -168,21 +159,15 @@ leNordShift:
   ORA tempnybble
   STA direction
 doneShiftLeft:
-  ;LDA #$E0
-  ;STA scrolly
   JSR LoadBackgroundIndex
   LDA #$30
   STA timer
   JMP ReadDone
-ReadLeftDone:
 
 ReadRight:
-  LDA buttons1
+  LDA buttonsInstant
   AND #$01
-  BEQ ReadRightDone
-  LDA timer
-  CMP #$00
-  BNE ReadDone
+  BEQ ReadDone
   LDA direction
   AND #$F0
   STA tempnybble
@@ -199,20 +184,12 @@ leSudShift:
   ORA tempnybble
   STA direction
 doneShiftRight:
-  ;LDA #$E0
-  ;STA scrolly
   JSR LoadBackgroundIndex
   LDA #$30
   STA timer
-  JMP ReadDone
-ReadRightDone:
 
 ReadDone:
   JSR decreasetimer
-
-
-
-
 
   RTI
 
@@ -268,9 +245,18 @@ ReadController1:
 ReadController1Loop:
   LDA JOY1
   LSR A
-  ROL buttons1
+  ROL buttonsInstant
   DEX
   BNE ReadController1Loop
+  RTS
+
+checkForPressedBtn:
+  LDA buttonsInstant
+  TAY
+  EOR buttonsPressed
+  AND buttonsInstant
+  STY buttonsPressed
+  STA buttonsInstant
   RTS
 
 LoadBackgroundIndex:
@@ -303,50 +289,65 @@ cote:
   LDA #$00
   STA PPU_MASK
   JSR VBlankWait
-  JSR LoadBackgroundCote
+  LDA #<backgroundCote
+  STA pointerLo
+  LDA #>backgroundCote
+  STA pointerHi
+  JSR LoadBackground
   JSR break
   RTS
 fond:
   LDA #$00
   STA PPU_MASK
   JSR VBlankWait
-  JSR LoadBackground4
+  LDA #<background4
+  STA pointerLo
+  LDA #>background4
+  STA pointerHi
+  JSR LoadBackground
   JSR break
   RTS
 fondu:
   LDA #$00
   STA PPU_MASK
   JSR VBlankWait
-  JSR LoadBackground3
+  LDA #<background3
+  STA pointerLo
+  LDA #>background3
+  STA pointerHi
+  JSR LoadBackground
   JSR break
   RTS
 proche:
   LDA #$00
   STA PPU_MASK
   JSR VBlankWait
-  JSR LoadBackground2
+  LDA #<background2
+  STA pointerLo
+  LDA #>background2
+  STA pointerHi
+  JSR LoadBackground
   JSR break
   RTS
 Devant:
   LDA #$00
   STA PPU_MASK
   JSR VBlankWait
-  JSR LoadBackground1
+  LDA #<background1
+  STA pointerLo
+  LDA #>background1
+  STA pointerHi
+  JSR LoadBackground
   JSR break
   RTS
 
 
-LoadBackground1:
+LoadBackground:
   LDA PPU_STATUS        ; read PPU status to reset the high/low latch
   LDA #$20
   STA PPU_ADDRESS       ; write the high byte of $2000 address
   LDA #$00
   STA PPU_ADDRESS       ; write the low byte of $2000 address
-
-  LDA backgroundAddrLo1
-  STA pointerLo         ; put the low byte of the address of background into pointer
-  LDA backgroundAddrHi1
-  STA pointerHi         ; put the high byte of the address into pointer
   
   LDX #$00              ; start at pointer + 0
   LDY #$00
@@ -367,190 +368,6 @@ InsideLoop:
   BNE OutsideLoop     ; run the outside loop 256 times before continuing down
   RTS
 
-LoadBackground2:
-  LDA PPU_STATUS        ; read PPU status to reset the high/low latch
-  LDA #$20
-  STA PPU_ADDRESS       ; write the high byte of $2000 address
-  LDA #$00
-  STA PPU_ADDRESS       ; write the low byte of $2000 address
-
-  LDA backgroundAddrLo2
-  STA pointerLo         ; put the low byte of the address of background into pointer
-  LDA backgroundAddrHi2
-  STA pointerHi         ; put the high byte of the address into pointer
-  
-  LDX #$00              ; start at pointer + 0
-  LDY #$00
-OutsideLoop2:
-  
-InsideLoop2:
-  LDA (pointerLo), y  ; copy one background byte from address in pointer plus Y
-  STA PPU_DATA        ; this runs 256 * 4 times
-  
-  INY                 ; inside loop counter
-  CPY #$00
-  BNE InsideLoop2      ; run the inside loop 256 times before continuing down
-  
-  INC pointerHi       ; low byte went 0 to 256, so high byte needs to be changed now
-  
-  INX
-  CPX #$04
-  BNE OutsideLoop2     ; run the outside loop 256 times before continuing down
-  RTS
-
-LoadBackground3:
-  LDA PPU_STATUS        ; read PPU status to reset the high/low latch
-  LDA #$20
-  STA PPU_ADDRESS       ; write the high byte of $2000 address
-  LDA #$00
-  STA PPU_ADDRESS       ; write the low byte of $2000 address
-
-  LDA backgroundAddrLo3
-  STA pointerLo         ; put the low byte of the address of background into pointer
-  LDA backgroundAddrHi3
-  STA pointerHi         ; put the high byte of the address into pointer
-  
-  LDX #$00              ; start at pointer + 0
-  LDY #$00
-OutsideLoop3:
-  
-InsideLoop3:
-  LDA (pointerLo), y  ; copy one background byte from address in pointer plus Y
-  STA PPU_DATA        ; this runs 256 * 4 times
-  
-  INY                 ; inside loop counter
-  CPY #$00
-  BNE InsideLoop3      ; run the inside loop 256 times before continuing down
-  
-  INC pointerHi       ; low byte went 0 to 256, so high byte needs to be changed now
-  
-  INX
-  CPX #$04
-  BNE OutsideLoop3     ; run the outside loop 256 times before continuing down
-  RTS
-
-LoadBackground4:
-  LDA PPU_STATUS        ; read PPU status to reset the high/low latch
-  LDA #$20
-  STA PPU_ADDRESS       ; write the high byte of $2000 address
-  LDA #$00
-  STA PPU_ADDRESS       ; write the low byte of $2000 address
-
-  LDA backgroundAddrLo4
-  STA pointerLo         ; put the low byte of the address of background into pointer
-  LDA backgroundAddrHi4
-  STA pointerHi         ; put the high byte of the address into pointer
-  
-  LDX #$00              ; start at pointer + 0
-  LDY #$00
-OutsideLoop4:
-  
-InsideLoop4:
-  LDA (pointerLo), y  ; copy one background byte from address in pointer plus Y
-  STA PPU_DATA        ; this runs 256 * 4 times
-  
-  INY                 ; inside loop counter
-  CPY #$00
-  BNE InsideLoop4      ; run the inside loop 256 times before continuing down
-  
-  INC pointerHi       ; low byte went 0 to 256, so high byte needs to be changed now
-  
-  INX
-  CPX #$04
-  BNE OutsideLoop4     ; run the outside loop 256 times before continuing down
-  RTS
-
-LoadBackgroundCote:
-  LDA PPU_STATUS        ; read PPU status to reset the high/low latch
-  LDA #$20
-  STA PPU_ADDRESS       ; write the high byte of $2000 address
-  LDA #$00
-  STA PPU_ADDRESS       ; write the low byte of $2000 address
-
-  LDA backgroundAddrLoCote
-  STA pointerLo         ; put the low byte of the address of background into pointer
-  LDA backgroundAddrHiCote
-  STA pointerHi         ; put the high byte of the address into pointer
-  
-  LDX #$00              ; start at pointer + 0
-  LDY #$00
-OutsideLoopCote:
-  
-InsideLoopCote:
-  LDA (pointerLo), y  ; copy one background byte from address in pointer plus Y
-  STA PPU_DATA        ; this runs 256 * 4 times
-  
-  INY                 ; inside loop counter
-  CPY #$00
-  BNE InsideLoopCote      ; run the inside loop 256 times before continuing down
-  
-  INC pointerHi       ; low byte went 0 to 256, so high byte needs to be changed now
-  
-  INX
-  CPX #$04
-  BNE OutsideLoopCote     ; run the outside loop 256 times before continuing down
-  RTS
-
-LoadDownScreen:
-  LDA PPU_STATUS        ; read PPU status to reset the high/low latch
-  LDA #$28
-  STA PPU_ADDRESS       ; write the high byte of $2000 address
-  LDA #$00
-  STA PPU_ADDRESS       ; write the low byte of $2000 address
-
-  LDA downScreenAddrLo
-  STA pointerLo         ; put the low byte of the address of background into pointer
-  LDA downScreenAddrHi
-  STA pointerHi         ; put the high byte of the address into pointer
-  
-  LDX #$00              ; start at pointer + 0
-  LDY #$00
-OutsideLoopF:
-  
-InsideLoopF:
-  LDA (pointerLo), y  ; copy one background byte from address in pointer plus Y
-  STA PPU_DATA        ; this runs 256 * 4 times
-  
-  INY                 ; inside loop counter
-  CPY #$00
-  BNE InsideLoopF     ; run the inside loop 256 times before continuing down
-  
-  INC pointerHi       ; low byte went 0 to 256, so high byte needs to be changed now
-  
-  INX
-  CPX #$04
-  BNE OutsideLoopF    ; run the outside loop 256 times before continuing down
-  RTS
-
-backgroundAddrLo1:
-  .BYTE <background1
-backgroundAddrHi1:
-  .BYTE >background1
-
-backgroundAddrLo2:
-  .BYTE <background2
-backgroundAddrHi2:
-  .BYTE >background2
-
-backgroundAddrLo3:
-  .BYTE <background3
-backgroundAddrHi3:
-  .BYTE >background3
-
-backgroundAddrLo4:
-  .BYTE <background4
-backgroundAddrHi4:
-  .BYTE >background4
-
-backgroundAddrLoCote:
-  .BYTE <backgroundCote
-backgroundAddrHiCote:
-  .BYTE >backgroundCote
-
-downScreenAddrLo:
-  .BYTE <downScreen
-downScreenAddrHi:
-  .BYTE >downScreen
 
 background3:
   .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 1
@@ -1057,106 +874,6 @@ attributeWest_East:
   .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
   .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
 
-downScreen:
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 1
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 2
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 3
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 4
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 5
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 6
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 7
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 8
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 9
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 10
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 11
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 12
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 13
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 14
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 15
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 16
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 17
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 18
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 19
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 20
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 21
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 22
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 23
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 24
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 25
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 26
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 27
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 28
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 29
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24  ;;row 30
-  .BYTE $24,$24,$24,$24,$24,$24,$24,$24, $24,$24,$24,$24,$24,$24,$24,$24
-
-attributeDownScreen:
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
-  .BYTE %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000, %00000000
 
 killer:
   .BYTE $70,$00,$01,$68, $70,$01,$01,$70, $70,$02,$01,$78, $70,$03,$01,$80, $70,$04,$01,$88, $70,$05,$01,$90
