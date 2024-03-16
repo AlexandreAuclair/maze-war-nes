@@ -16,6 +16,7 @@ clrmem:
   STA $0000, x
   STA $0100, x
   STA $0200, x
+  LDA #$24
   STA $0400, x
   STA $0500, x
   STA $0600, x
