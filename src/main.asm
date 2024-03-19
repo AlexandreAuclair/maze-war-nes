@@ -23,9 +23,9 @@ corner_up_left_4  = $0485 ; |_ 2 square distance
 corner_up_left_5  = $04A6 ; |
 corner_up_left_6  = $04C7 ; |
 corner_up_left_7  = $04E8 ; +
-corner_up_left_8  = $0509 ; 3 square distance
-corner_up_left_9  = $052A ; 4 and 5 square distance
-corner_up_left_10 = $054B ; 6, 7, 8,  square distance
+corner_up_left_8  = $0509 ; |_ 3 square distance
+corner_up_left_9  = $052A ; |
+corner_up_left_10 = $054B ; +
 corner_up_left_11 = $056C ; 9, 10, 11, 12  square distance
 corner_up_left_12 = $058D ; 13, 14, 15, 16, 17 square distance
 corner_up_left_13 = $05AE ; 18, 19, 20, 21, 22, 23 square distance
@@ -327,7 +327,7 @@ s9_middle_12_left = $0647 ; |
 s9_middle_13_left = $0667 ; |
 s9_middle_14_left = $0687 ; |
 s9_middle_15_left = $06A7 ; |
-s9_middle_16_left = $06E7 ; |
+s9_middle_16_left = $06C7 ; |
 s9_middle_1_right = $04F8 ; |
 s9_middle_2_right = $0518 ; |
 s9_middle_3_right = $0538 ; |
@@ -832,7 +832,20 @@ backgroundID: .res 1
 j: .res 1
 indexByte: .res 1
 rayLength: .res 1
+rayLeft1Length: .res 1
+rayLeft2Length: .res 1
+rayLeft3Length: .res 1
+rayLeft4Length: .res 1
+rayLeft5Length: .res 1
+rayRight1Length: .res 1
+rayRight2Length: .res 1
+rayRight3Length: .res 1
+rayRight4Length: .res 1
+rayRight5Length: .res 1
+rayRightLengthDummy: .res 1
 waitingForUpdate: .res 1
+raytemp: .res 1  
+rayBranchIndex: .res 1  
 
 .SEGMENT "STARTUP"
 
@@ -864,6 +877,9 @@ RESET:
 
   JSR writeMaze
   JSR LoadDirectionSprite
+  JSR findCorridorLength
+  JSR findAllLeftPath
+  JSR findAllRightPath
 
 mainloop:
   LDA waitingForUpdate
@@ -874,6 +890,8 @@ mainloop:
 
   JSR refreshBGBank
   JSR updateBGdrawingHallwayEnd
+  JSR updateBG_BranchingPathLeft
+  JSR updateBG_BranchingPathRight
   JSR LoadDirectionSprite
 
   LDA #$00
@@ -1097,6 +1115,8 @@ doneShiftRight:
 ReadDone:
   JSR decreasetimer
   JSR findCorridorLength
+  JSR findAllLeftPath
+  JSR findAllRightPath
   LDA buttonsInstant    ; did a read occur, meaning change in state
   BEQ @noRead
   INC waitingForUpdate
@@ -1395,15 +1415,6 @@ updateBGdrawingHallwayEnd:
   @biggerthan30:
 
   LDA #$38
-  STA middle_corner_up_left
-  LDA #$39
-  STA middle_corner_up_right
-  LDA #$39
-  STA middle_corner_down_left
-  LDA #$38
-  STA middle_corner_down_right
-
-  LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
   STA corner_up_left_3
@@ -1417,6 +1428,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1431,6 +1443,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1445,6 +1458,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1459,7 +1473,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
-
+  STA middle_corner_down_right
   JMP @end
   @notbiggerthan30:
   CMP #$1E
@@ -1467,15 +1481,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan29
   @biggerthan29:
 
-  LDA #$61
-  STA middle_corner_up_left
-  LDA #$62
-  STA middle_corner_up_right
-  LDA #$63
-  STA middle_corner_down_left
-  LDA #$64
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1490,6 +1495,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1504,6 +1510,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1518,6 +1525,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1532,6 +1540,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
+  STA middle_corner_down_right
 
   JMP @end
   @notbiggerthan29:
@@ -1540,15 +1549,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan28
   @biggerthan28:
 
-  LDA #$5D
-  STA middle_corner_up_left
-  LDA #$5E
-  STA middle_corner_up_right
-  LDA #$5F
-  STA middle_corner_down_left
-  LDA #$60
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1563,6 +1563,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1577,6 +1578,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1591,6 +1593,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1605,7 +1608,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
-
+  STA middle_corner_down_right
   JMP @end
   @notbiggerthan28:
   CMP #$1C
@@ -1613,15 +1616,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan27
   @biggerthan27:
 
-  LDA #$65
-  STA middle_corner_up_left
-  LDA #$66
-  STA middle_corner_up_right
-  LDA #$67
-  STA middle_corner_down_left
-  LDA #$68
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1636,6 +1630,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1650,6 +1645,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1664,6 +1660,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1678,6 +1675,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
+  STA middle_corner_down_right
 
   JMP @end
   @notbiggerthan27:
@@ -1686,15 +1684,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan26
   @biggerthan26:
 
-  LDA #$69
-  STA middle_corner_up_left
-  LDA #$6A
-  STA middle_corner_up_right
-  LDA #$6B
-  STA middle_corner_down_left
-  LDA #$6C
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1709,6 +1698,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1723,6 +1713,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1737,6 +1728,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1751,6 +1743,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
+  STA middle_corner_down_right
 
   JMP @end
   @notbiggerthan26:
@@ -1759,15 +1752,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan25
   @biggerthan25:
 
-  LDA #$6D
-  STA middle_corner_up_left
-  LDA #$6E
-  STA middle_corner_up_right
-  LDA #$6F
-  STA middle_corner_down_left
-  LDA #$70
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1782,6 +1766,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1796,6 +1781,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1810,6 +1796,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1824,6 +1811,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
+  STA middle_corner_down_right
 
   JMP @end
   @notbiggerthan25:
@@ -1832,15 +1820,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan24
   @biggerthan24:
 
-  LDA #$71
-  STA middle_corner_up_left
-  LDA #$72
-  STA middle_corner_up_right
-  LDA #$73
-  STA middle_corner_down_left
-  LDA #$74
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1855,6 +1834,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1869,6 +1849,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1883,6 +1864,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1897,6 +1879,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
+  STA middle_corner_down_right
 
   JMP @end
   @notbiggerthan24:
@@ -1905,15 +1888,6 @@ updateBGdrawingHallwayEnd:
   JMP @notbiggerthan23
   @biggerthan23:
 
-  LDA #$2C
-  STA middle_corner_up_left
-  LDA #$2D
-  STA middle_corner_up_right
-  LDA #$2E
-  STA middle_corner_down_left
-  LDA #$2F
-  STA middle_corner_down_right
-
   LDA #$38
   STA corner_up_left_1
   STA corner_up_left_2
@@ -1928,6 +1902,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_11
   STA corner_up_left_12
   STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -1942,6 +1917,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_11
   STA corner_up_right_12
   STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -1956,6 +1932,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_11
   STA corner_down_left_12
   STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -1970,6 +1947,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
   STA corner_down_right_12
   STA corner_down_right_13
+  STA middle_corner_down_right
 
   JMP @end
   @notbiggerthan23:
@@ -1979,25 +1957,13 @@ updateBGdrawingHallwayEnd:
   @biggerthan22:
 
   LDA #$61
-  STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$62
-  STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$63
-  STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$64
-  STA corner_down_right_13
-  LDA #$54
-  STA s2_up_left
-  STA s2_up_right
-  LDA #$55
-  STA s2_down_left
-  STA s2_down_right
-  LDA #$33
-  STA s2_middle_1_left 
-  STA s2_middle_2_left 
-  LDA #$32
-  STA s2_middle_1_right
-  STA s2_middle_2_right
+  STA middle_corner_down_right
 
   LDA #$38
   STA corner_up_left_1
@@ -2012,6 +1978,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_10
   STA corner_up_left_11
   STA corner_up_left_12
+  STA corner_up_left_13
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -2025,6 +1992,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_10
   STA corner_up_right_11
   STA corner_up_right_12
+  STA corner_up_right_13
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -2038,6 +2006,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_10
   STA corner_down_left_11
   STA corner_down_left_12
+  STA corner_down_left_13
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -2051,7 +2020,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_10
   STA corner_down_right_11
   STA corner_down_right_12
-  
+  STA corner_down_right_13
 
   JMP @end
   @notbiggerthan22:
@@ -2061,25 +2030,13 @@ updateBGdrawingHallwayEnd:
   @biggerthan21:
 
   LDA #$5D
-  STA corner_up_left_13
+  STA middle_corner_up_left
   LDA #$5E
-  STA corner_up_right_13
+  STA middle_corner_up_right
   LDA #$5F
-  STA corner_down_left_13
+  STA middle_corner_down_left
   LDA #$60
-  STA corner_down_right_13
-  LDA #$56
-  STA s2_up_left
-  STA s2_up_right
-  LDA #$57
-  STA s2_down_left
-  STA s2_down_right
-  LDA #$35
-  STA s2_middle_1_left 
-  STA s2_middle_2_left 
-  LDA #$34
-  STA s2_middle_1_right
-  STA s2_middle_2_right
+  STA middle_corner_down_right
 
   LDA #$38
   STA corner_up_left_1
@@ -2094,6 +2051,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_10
   STA corner_up_left_11
   STA corner_up_left_12
+  STA corner_up_left_13
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -2107,6 +2065,7 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_10
   STA corner_up_right_11
   STA corner_up_right_12
+  STA corner_up_right_13
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -2120,6 +2079,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_10
   STA corner_down_left_11
   STA corner_down_left_12
+  STA corner_down_left_13
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -2133,6 +2093,7 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_10
   STA corner_down_right_11
   STA corner_down_right_12
+  STA corner_down_right_13
 
   JMP @end
   @notbiggerthan21:
@@ -2142,6 +2103,613 @@ updateBGdrawingHallwayEnd:
   @biggerthan20:
 
   LDA #$65
+  STA middle_corner_up_left
+  LDA #$66
+  STA middle_corner_up_right
+  LDA #$67
+  STA middle_corner_down_left
+  LDA #$68
+  STA middle_corner_down_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  STA corner_up_left_13
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  STA corner_up_right_13
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  STA corner_down_left_13
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+  STA corner_down_right_13
+
+  JMP @end
+  @notbiggerthan20:
+  CMP #$14
+  BCS @biggerthan19
+  JMP @notbiggerthan19
+  @biggerthan19:
+
+  LDA #$69
+  STA middle_corner_up_left
+  LDA #$6A
+  STA middle_corner_up_right
+  LDA #$6B
+  STA middle_corner_down_left
+  LDA #$6C
+  STA middle_corner_down_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  STA corner_up_left_13
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  STA corner_up_right_13
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  STA corner_down_left_13
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+  STA corner_down_right_13
+
+  JMP @end
+  @notbiggerthan19:
+  CMP #$13
+  BCS @biggerthan18
+  JMP @notbiggerthan18
+  @biggerthan18:
+
+  LDA #$6D
+  STA middle_corner_up_left
+  LDA #$6E
+  STA middle_corner_up_right
+  LDA #$6F
+  STA middle_corner_down_left
+  LDA #$70
+  STA middle_corner_down_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  STA corner_up_left_13
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  STA corner_up_right_13
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  STA corner_down_left_13
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+  STA corner_down_right_13
+
+  JMP @end
+  @notbiggerthan18:
+  CMP #$12
+  BCS @biggerthan17
+  JMP @notbiggerthan17
+  @biggerthan17:
+
+  LDA #$71
+  STA middle_corner_up_left
+  LDA #$72
+  STA middle_corner_up_right
+  LDA #$73
+  STA middle_corner_down_left
+  LDA #$74
+  STA middle_corner_down_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  STA corner_up_left_13
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  STA corner_up_right_13
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  STA corner_down_left_13
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+  STA corner_down_right_13
+
+  JMP @end
+  @notbiggerthan17:
+  CMP #$11
+  BCS @biggerthan16
+  JMP @notbiggerthan16
+  @biggerthan16:
+
+  LDA #$2C
+  STA middle_corner_up_left
+  LDA #$2D
+  STA middle_corner_up_right
+  LDA #$2E
+  STA middle_corner_down_left
+  LDA #$2F
+  STA middle_corner_down_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  STA corner_up_left_13
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  STA corner_up_right_13
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  STA corner_down_left_13
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+  STA corner_down_right_13
+
+  JMP @end
+  @notbiggerthan16:
+  CMP #$10
+  BCS @biggerthan15
+  JMP @notbiggerthan15
+  @biggerthan15:
+
+  LDA #$38
+  STA corner_up_left_13
+  STA corner_down_right_13
+  LDA #$39
+  STA corner_up_right_13
+  STA corner_down_left_13
+  
+  LDA #$53
+  STA s2_up_left
+  STA s2_up_right
+  LDA #$52
+  STA s2_down_left
+  STA s2_down_right
+  LDA #$31
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  LDA #$30
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+
+  JMP @end
+  @notbiggerthan15:
+  CMP #$0F
+  BCS @biggerthan14
+  JMP @notbiggerthan14
+  @biggerthan14:
+
+  LDA #$61
+  STA corner_up_left_13
+  LDA #$62
+  STA corner_up_right_13
+  LDA #$63
+  STA corner_down_left_13
+  LDA #$64
+  STA corner_down_right_13
+  LDA #$54
+  STA s2_up_left
+  STA s2_up_right
+  LDA #$55
+  STA s2_down_left
+  STA s2_down_right
+  LDA #$33
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  LDA #$32
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+
+  JMP @end
+  @notbiggerthan14:
+  CMP #$0E
+  BCS @biggerthan13
+  JMP @notbiggerthan13
+  @biggerthan13:
+
+  LDA #$5D
+  STA corner_up_left_13
+  LDA #$5E
+  STA corner_up_right_13
+  LDA #$5F
+  STA corner_down_left_13
+  LDA #$60
+  STA corner_down_right_13
+  LDA #$56
+  STA s2_up_left
+  STA s2_up_right
+  LDA #$57
+  STA s2_down_left
+  STA s2_down_right
+  LDA #$35
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  LDA #$34
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+
+  JMP @end
+  @notbiggerthan13:
+  CMP #$0D
+  BCS @biggerthan12
+  JMP @notbiggerthan12
+  @biggerthan12:
+
+  LDA #$65
   STA corner_up_left_13
   LDA #$66
   STA corner_up_right_13
@@ -2156,8 +2724,8 @@ updateBGdrawingHallwayEnd:
   STA s2_down_left
   STA s2_down_right
   LDA #$37
-  STA s2_middle_1_left 
-  STA s2_middle_2_left 
+  STA s2_middle_1_left
+  STA s2_middle_2_left
   LDA #$36
   STA s2_middle_1_right
   STA s2_middle_2_right
@@ -2216,11 +2784,11 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_12
 
   JMP @end
-  @notbiggerthan20:
-  CMP #$14
-  BCS @biggerthan19
-  JMP @notbiggerthan19
-  @biggerthan19:
+  @notbiggerthan12:
+  CMP #$0C
+  BCS @biggerthan11
+  JMP @notbiggerthan11
+  @biggerthan11:
 
   LDA #$69
   STA corner_up_left_13
@@ -2237,8 +2805,8 @@ updateBGdrawingHallwayEnd:
   STA s2_down_left
   STA s2_down_right
   LDA #$36
-  STA s2_middle_1_left 
-  STA s2_middle_2_left 
+  STA s2_middle_1_left
+  STA s2_middle_2_left
   LDA #$37
   STA s2_middle_1_right
   STA s2_middle_2_right
@@ -2297,11 +2865,11 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_12
 
   JMP @end
-  @notbiggerthan19:
-  CMP #$13
-  BCS @biggerthan18
-  JMP @notbiggerthan18
-  @biggerthan18:
+  @notbiggerthan11:
+  CMP #$0B
+  BCS @biggerthan10
+  JMP @notbiggerthan10
+  @biggerthan10:
 
   LDA #$6D
   STA corner_up_left_13
@@ -2318,8 +2886,8 @@ updateBGdrawingHallwayEnd:
   STA s2_down_left
   STA s2_down_right
   LDA #$34
-  STA s2_middle_1_left 
-  STA s2_middle_2_left 
+  STA s2_middle_1_left
+  STA s2_middle_2_left
   LDA #$35
   STA s2_middle_1_right
   STA s2_middle_2_right
@@ -2378,11 +2946,92 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_12
 
   JMP @end
-  @notbiggerthan18:
-  CMP #$12
-  BCS @biggerthan17
-  JMP @notbiggerthan17
-  @biggerthan17:
+  @notbiggerthan10:
+  CMP #$0A
+  BCS @biggerthan9
+  JMP @notbiggerthan9
+  @biggerthan9:
+
+  LDA #$71
+  STA corner_up_left_13
+  LDA #$72
+  STA corner_up_right_13
+  LDA #$73
+  STA corner_down_left_13
+  LDA #$74
+  STA corner_down_right_13
+  LDA #$55
+  STA s2_up_left
+  STA s2_up_right
+  LDA #$54
+  STA s2_down_left
+  STA s2_down_right
+  LDA #$32
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  LDA #$33
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  STA corner_up_left_12
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  STA corner_up_right_12
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  STA corner_down_left_12
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+  STA corner_down_right_12
+
+  JMP @end
+  @notbiggerthan9:
+  CMP #$09
+  BCS @biggerthan8
+  JMP @notbiggerthan8
+  @biggerthan8:
 
   LDA #$2C
   STA corner_up_left_13
@@ -2399,8 +3048,8 @@ updateBGdrawingHallwayEnd:
   STA s2_down_left
   STA s2_down_right
   LDA #$30
-  STA s2_middle_1_left 
-  STA s2_middle_2_left 
+  STA s2_middle_1_left
+  STA s2_middle_2_left
   LDA #$31
   STA s2_middle_1_right
   STA s2_middle_2_right
@@ -2459,11 +3108,94 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_12
 
   JMP @end
-  @notbiggerthan17:
-  CMP #$11
-  BCS @biggerthan16
-  JMP @notbiggerthan16
-  @biggerthan16:
+  @notbiggerthan8:
+  CMP #$08
+  BCS @biggerthan7
+  JMP @notbiggerthan7
+  @biggerthan7:
+
+  LDA #$38
+  STA corner_up_left_12
+  STA corner_down_right_12
+  LDA #$39
+  STA corner_up_right_12
+  STA corner_down_left_12
+  LDA #$53
+  STA s3_up_1_left
+  STA s3_up_2_left
+  STA s3_up_1_right
+  STA s3_up_2_right
+  LDA #$52
+  STA s3_down_1_left
+  STA s3_down_2_left
+  STA s3_down_1_right
+  STA s3_down_2_right
+  LDA #$31
+  STA s3_middle_1_left
+  STA s3_middle_2_left
+  STA s3_middle_3_left
+  STA s3_middle_4_left
+  LDA #$30
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+
+  LDA #$38
+  STA corner_up_left_1
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_up_left_10
+  STA corner_up_left_11
+  LDA #$39
+  STA corner_up_right_1
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_up_right_10
+  STA corner_up_right_11
+  LDA #$39
+  STA corner_down_left_1
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
+  STA corner_down_left_10
+  STA corner_down_left_11
+  LDA #$38
+  STA corner_down_right_1
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+  STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
+  STA corner_down_right_10
+  STA corner_down_right_11
+
+  JMP @end
+  @notbiggerthan7:
+  CMP #$07
+  BCS @biggerthan6
+  JMP @notbiggerthan6
+  @biggerthan6:
 
   LDA #$61
   STA corner_up_left_12
@@ -2544,11 +3276,11 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
 
   JMP @end
-  @notbiggerthan16:
-  CMP #$10
-  BCS @biggerthan15
-  JMP @notbiggerthan15
-  @biggerthan15:
+  @notbiggerthan6:
+  CMP #$06
+  BCS @biggerthan5
+  JMP @notbiggerthan5
+  @biggerthan5:
 
   LDA #$5D
   STA corner_up_left_12
@@ -2629,11 +3361,11 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
 
   JMP @end
-  @notbiggerthan15:
-  CMP #$0F
-  BCS @biggerthan14
-  JMP @notbiggerthan14
-  @biggerthan14:
+  @notbiggerthan5:
+  CMP #$05
+  BCS @biggerthan4
+  JMP @notbiggerthan4
+  @biggerthan4:
 
   LDA #$69
   STA corner_up_left_12
@@ -2714,270 +3446,11 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_11
 
   JMP @end
-  @notbiggerthan14:
-  CMP #$0E
-  BCS @biggerthan13
-  JMP @notbiggerthan13
-  @biggerthan13:
-
-  LDA #$6D
-  STA corner_up_left_12
-  LDA #$6E
-  STA corner_up_right_12
-  LDA #$6F
-  STA corner_down_left_12
-  LDA #$70
-  STA corner_down_right_12
-  LDA #$57
-  STA s3_up_1_left
-  STA s3_up_2_left
-  STA s3_up_1_right
-  STA s3_up_2_right
-  LDA #$56
-  STA s3_down_1_left
-  STA s3_down_2_left
-  STA s3_down_1_right
-  STA s3_down_2_right
-  LDA #$34
-  STA s3_middle_1_left
-  STA s3_middle_2_left
-  STA s3_middle_3_left
-  STA s3_middle_4_left
-  LDA #$35
-  STA s3_middle_1_right
-  STA s3_middle_2_right
-  STA s3_middle_3_right
-  STA s3_middle_4_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  STA corner_up_left_10
-  STA corner_up_left_11
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  STA corner_up_right_10
-  STA corner_up_right_11
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  STA corner_down_left_10
-  STA corner_down_left_11
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-  STA corner_down_right_10
-  STA corner_down_right_11
-
-  JMP @end
-  @notbiggerthan13:
-  CMP #$0D
-  BCS @biggerthan12
-  JMP @notbiggerthan12
-  @biggerthan12:
-
-  LDA #$2C
-  STA corner_up_left_12
-  LDA #$2D
-  STA corner_up_right_12
-  LDA #$2E
-  STA corner_down_left_12
-  LDA #$2F
-  STA corner_down_right_12
-  LDA #$52
-  STA s3_up_1_left
-  STA s3_up_2_left
-  STA s3_up_1_right
-  STA s3_up_2_right
-  LDA #$53
-  STA s3_down_1_left
-  STA s3_down_2_left
-  STA s3_down_1_right
-  STA s3_down_2_right
-  LDA #$30
-  STA s3_middle_1_left
-  STA s3_middle_2_left
-  STA s3_middle_3_left
-  STA s3_middle_4_left
-  LDA #$31
-  STA s3_middle_1_right
-  STA s3_middle_2_right
-  STA s3_middle_3_right
-  STA s3_middle_4_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  STA corner_up_left_10
-  STA corner_up_left_11
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  STA corner_up_right_10
-  STA corner_up_right_11
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  STA corner_down_left_10
-  STA corner_down_left_11
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-  STA corner_down_right_10
-  STA corner_down_right_11
-
-  JMP @end
-  @notbiggerthan12:
-  CMP #$0C
-  BCS @biggerthan11
-  JMP @notbiggerthan11
-  @biggerthan11:
-
-  LDA #$61
-  STA corner_up_left_11
-  LDA #$62
-  STA corner_up_right_11
-  LDA #$63
-  STA corner_down_left_11
-  LDA #$64
-  STA corner_down_right_11
-  LDA #$54
-  STA s4_up_1_left
-  STA s4_up_2_left
-  STA s4_up_3_left
-  STA s4_up_1_right
-  STA s4_up_2_right
-  STA s4_up_3_right
-  LDA #$55
-  STA s4_down_1_left
-  STA s4_down_2_left
-  STA s4_down_3_left
-  STA s4_down_1_right
-  STA s4_down_2_right
-  STA s4_down_3_right
-  LDA #$33
-  STA s4_middle_1_left
-  STA s4_middle_2_left
-  STA s4_middle_3_left
-  STA s4_middle_4_left
-  STA s4_middle_5_left
-  STA s4_middle_6_left
-  LDA #$32
-  STA s4_middle_1_right
-  STA s4_middle_2_right
-  STA s4_middle_3_right
-  STA s4_middle_4_right
-  STA s4_middle_5_right
-  STA s4_middle_6_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  STA corner_up_left_10
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  STA corner_up_right_10
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  STA corner_down_left_10
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-  STA corner_down_right_10
-
-  JMP @end
-  @notbiggerthan11:
-  CMP #$0B
-  BCS @biggerthan10
-  JMP @notbiggerthan10
-  @biggerthan10:
+  @notbiggerthan4:
+  CMP #$04
+  BCS @biggerthan3
+  JMP @notbiggerthan3
+  @biggerthan3:
 
   LDA #$65
   STA corner_up_left_11
@@ -3062,723 +3535,56 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_10
 
   JMP @end
-  @notbiggerthan10:
-  CMP #$0A
-  BCS @biggerthan9
-  JMP @notbiggerthan9
-  @biggerthan9:
-
-  LDA #$6D
-  STA corner_up_left_11
-  LDA #$6E
-  STA corner_up_right_11
-  LDA #$6F
-  STA corner_down_left_11
-  LDA #$70
-  STA corner_down_right_11
-  LDA #$57
-  STA s4_up_1_left
-  STA s4_up_2_left
-  STA s4_up_3_left
-  STA s4_up_1_right
-  STA s4_up_2_right
-  STA s4_up_3_right
-  LDA #$56
-  STA s4_down_1_left
-  STA s4_down_2_left
-  STA s4_down_3_left
-  STA s4_down_1_right
-  STA s4_down_2_right
-  STA s4_down_3_right
-  LDA #$34
-  STA s4_middle_1_left
-  STA s4_middle_2_left
-  STA s4_middle_3_left
-  STA s4_middle_4_left
-  STA s4_middle_5_left
-  STA s4_middle_6_left
-  LDA #$35
-  STA s4_middle_1_right
-  STA s4_middle_2_right
-  STA s4_middle_3_right
-  STA s4_middle_4_right
-  STA s4_middle_5_right
-  STA s4_middle_6_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  STA corner_up_left_10
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  STA corner_up_right_10
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  STA corner_down_left_10
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-  STA corner_down_right_10
-
-  JMP @end
-  @notbiggerthan9:
-  CMP #$09
-  BCS @biggerthan8
-  JMP @notbiggerthan8
-  @biggerthan8:
-
-  LDA #$2C
-  STA corner_up_left_11
-  LDA #$2D
-  STA corner_up_right_11
-  LDA #$2E
-  STA corner_down_left_11
-  LDA #$2F
-  STA corner_down_right_11
-  LDA #$52
-  STA s4_up_1_left
-  STA s4_up_2_left
-  STA s4_up_3_left
-  STA s4_up_1_right
-  STA s4_up_2_right
-  STA s4_up_3_right
-  LDA #$53
-  STA s4_down_1_left
-  STA s4_down_2_left
-  STA s4_down_3_left
-  STA s4_down_1_right
-  STA s4_down_2_right
-  STA s4_down_3_right
-  LDA #$30
-  STA s4_middle_1_left
-  STA s4_middle_2_left
-  STA s4_middle_3_left
-  STA s4_middle_4_left
-  STA s4_middle_5_left
-  STA s4_middle_6_left
-  LDA #$31
-  STA s4_middle_1_right
-  STA s4_middle_2_right
-  STA s4_middle_3_right
-  STA s4_middle_4_right
-  STA s4_middle_5_right
-  STA s4_middle_6_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  STA corner_up_left_10
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  STA corner_up_right_10
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  STA corner_down_left_10
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-  STA corner_down_right_10
-
-  JMP @end
-  @notbiggerthan8:
-  CMP #$08
-  BCS @biggerthan7
-  JMP @notbiggerthan7
-  @biggerthan7:
-
-  LDA #$5D
-  STA corner_up_left_10
-  LDA #$5E
-  STA corner_up_right_10
-  LDA #$5F
-  STA corner_down_left_10
-  LDA #$60
-  STA corner_down_right_10
-  LDA #$56
-  STA s5_up_1_left
-  STA s5_up_2_left
-  STA s5_up_3_left
-  STA s5_up_4_left
-  STA s5_up_1_right
-  STA s5_up_2_right
-  STA s5_up_3_right
-  STA s5_up_4_right
-  LDA #$57
-  STA s5_down_1_left
-  STA s5_down_2_left
-  STA s5_down_3_left
-  STA s5_down_4_left
-  STA s5_down_1_right
-  STA s5_down_2_right
-  STA s5_down_3_right
-  STA s5_down_4_right
-  LDA #$35
-  STA s5_middle_1_left
-  STA s5_middle_2_left
-  STA s5_middle_3_left
-  STA s5_middle_4_left
-  STA s5_middle_5_left
-  STA s5_middle_6_left
-  STA s5_middle_7_left
-  STA s5_middle_8_left
-  LDA #$34
-  STA s5_middle_1_right
-  STA s5_middle_2_right
-  STA s5_middle_3_right
-  STA s5_middle_4_right
-  STA s5_middle_5_right
-  STA s5_middle_6_right
-  STA s5_middle_7_right
-  STA s5_middle_8_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-
-  JMP @end
-  @notbiggerthan7:
-  CMP #$07
-  BCS @biggerthan6
-  JMP @notbiggerthan6
-  @biggerthan6:
-
-  LDA #$69
-  STA corner_up_left_10
-  LDA #$6A
-  STA corner_up_right_10
-  LDA #$6B
-  STA corner_down_left_10
-  LDA #$6C
-  STA corner_down_right_10
-  LDA #$59
-  STA s5_up_1_left
-  STA s5_up_2_left
-  STA s5_up_3_left
-  STA s5_up_4_left
-  STA s5_up_1_right
-  STA s5_up_2_right
-  STA s5_up_3_right
-  STA s5_up_4_right
-  LDA #$58
-  STA s5_down_1_left
-  STA s5_down_2_left
-  STA s5_down_3_left
-  STA s5_down_4_left
-  STA s5_down_1_right
-  STA s5_down_2_right
-  STA s5_down_3_right
-  STA s5_down_4_right
-  LDA #$36
-  STA s5_middle_1_left
-  STA s5_middle_2_left
-  STA s5_middle_3_left
-  STA s5_middle_4_left
-  STA s5_middle_5_left
-  STA s5_middle_6_left
-  STA s5_middle_7_left
-  STA s5_middle_8_left
-  LDA #$37
-  STA s5_middle_1_right
-  STA s5_middle_2_right
-  STA s5_middle_3_right
-  STA s5_middle_4_right
-  STA s5_middle_5_right
-  STA s5_middle_6_right
-  STA s5_middle_7_right
-  STA s5_middle_8_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-
-  JMP @end
-  @notbiggerthan6:
-  CMP #$06
-  BCS @biggerthan5
-  JMP @notbiggerthan5
-  @biggerthan5:
-
-  LDA #$71
-  STA corner_up_left_10
-  LDA #$72
-  STA corner_up_right_10
-  LDA #$73
-  STA corner_down_left_10
-  LDA #$74
-  STA corner_down_right_10
-  LDA #$55
-  STA s5_up_1_left
-  STA s5_up_2_left
-  STA s5_up_3_left
-  STA s5_up_4_left
-  STA s5_up_1_right
-  STA s5_up_2_right
-  STA s5_up_3_right
-  STA s5_up_4_right
-  LDA #$54
-  STA s5_down_1_left
-  STA s5_down_2_left
-  STA s5_down_3_left
-  STA s5_down_4_left
-  STA s5_down_1_right
-  STA s5_down_2_right
-  STA s5_down_3_right
-  STA s5_down_4_right
-  LDA #$32
-  STA s5_middle_1_left
-  STA s5_middle_2_left
-  STA s5_middle_3_left
-  STA s5_middle_4_left
-  STA s5_middle_5_left
-  STA s5_middle_6_left
-  STA s5_middle_7_left
-  STA s5_middle_8_left
-  LDA #$33
-  STA s5_middle_1_right
-  STA s5_middle_2_right
-  STA s5_middle_3_right
-  STA s5_middle_4_right
-  STA s5_middle_5_right
-  STA s5_middle_6_right
-  STA s5_middle_7_right
-  STA s5_middle_8_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  STA corner_up_left_9
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  STA corner_up_right_9
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  STA corner_down_left_9
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-  STA corner_down_right_9
-
-  JMP @end
-  @notbiggerthan5:
-  CMP #$05
-  BCS @biggerthan4
-  JMP @notbiggerthan4
-  @biggerthan4:
-
-  LDA #$5D
-  STA corner_up_left_9
-  LDA #$5E
-  STA corner_up_right_9
-  LDA #$5F
-  STA corner_down_left_9
-  LDA #$60
-  STA corner_down_right_9
-  LDA #$56
-  STA s6_up_1_left
-  STA s6_up_2_left
-  STA s6_up_3_left
-  STA s6_up_4_left
-  STA s6_up_5_left
-  STA s6_up_1_right
-  STA s6_up_2_right
-  STA s6_up_3_right
-  STA s6_up_4_right
-  STA s6_up_5_right
-  LDA #$57
-  STA s6_down_1_left
-  STA s6_down_2_left
-  STA s6_down_3_left
-  STA s6_down_4_left
-  STA s6_down_5_left
-  STA s6_down_1_right
-  STA s6_down_2_right
-  STA s6_down_3_right
-  STA s6_down_4_right
-  STA s6_down_5_right
-  LDA #$35
-  STA s6_middle_1_left
-  STA s6_middle_2_left
-  STA s6_middle_3_left
-  STA s6_middle_4_left
-  STA s6_middle_5_left
-  STA s6_middle_6_left
-  STA s6_middle_7_left
-  STA s6_middle_8_left
-  STA s6_middle_9_left
-  STA s6_middle_10_left
-  LDA #$34
-  STA s6_middle_1_right
-  STA s6_middle_2_right
-  STA s6_middle_3_right
-  STA s6_middle_4_right
-  STA s6_middle_5_right
-  STA s6_middle_6_right
-  STA s6_middle_7_right
-  STA s6_middle_8_right
-  STA s6_middle_9_right
-  STA s6_middle_10_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-
-  JMP @end
-  @notbiggerthan4:
-  CMP #$04
-  BCS @biggerthan3
-  JMP @notbiggerthan3
-  @biggerthan3:
-
-  LDA #$6D
-  STA corner_up_left_9
-  LDA #$6E
-  STA corner_up_right_9
-  LDA #$6F
-  STA corner_down_left_9
-  LDA #$70
-  STA corner_down_right_9
-  LDA #$57
-  STA s6_up_1_left
-  STA s6_up_2_left
-  STA s6_up_3_left
-  STA s6_up_4_left
-  STA s6_up_5_left
-  STA s6_up_1_right
-  STA s6_up_2_right
-  STA s6_up_3_right
-  STA s6_up_4_right
-  STA s6_up_5_right
-  LDA #$56
-  STA s6_down_1_left
-  STA s6_down_2_left
-  STA s6_down_3_left
-  STA s6_down_4_left
-  STA s6_down_5_left
-  STA s6_down_1_right
-  STA s6_down_2_right
-  STA s6_down_3_right
-  STA s6_down_4_right
-  STA s6_down_5_right
-  LDA #$34
-  STA s6_middle_1_left
-  STA s6_middle_2_left
-  STA s6_middle_3_left
-  STA s6_middle_4_left
-  STA s6_middle_5_left
-  STA s6_middle_6_left
-  STA s6_middle_7_left
-  STA s6_middle_8_left
-  STA s6_middle_9_left
-  STA s6_middle_10_left
-  LDA #$35
-  STA s6_middle_1_right
-  STA s6_middle_2_right
-  STA s6_middle_3_right
-  STA s6_middle_4_right
-  STA s6_middle_5_right
-  STA s6_middle_6_right
-  STA s6_middle_7_right
-  STA s6_middle_8_right
-  STA s6_middle_9_right
-  STA s6_middle_10_right
-
-  LDA #$38
-  STA corner_up_left_1
-  STA corner_up_left_2
-  STA corner_up_left_3
-  STA corner_up_left_4
-  STA corner_up_left_5
-  STA corner_up_left_6
-  STA corner_up_left_7
-  STA corner_up_left_8
-  LDA #$39
-  STA corner_up_right_1
-  STA corner_up_right_2
-  STA corner_up_right_3
-  STA corner_up_right_4
-  STA corner_up_right_5
-  STA corner_up_right_6
-  STA corner_up_right_7
-  STA corner_up_right_8
-  LDA #$39
-  STA corner_down_left_1
-  STA corner_down_left_2
-  STA corner_down_left_3
-  STA corner_down_left_4
-  STA corner_down_left_5
-  STA corner_down_left_6
-  STA corner_down_left_7
-  STA corner_down_left_8
-  LDA #$38
-  STA corner_down_right_1
-  STA corner_down_right_2
-  STA corner_down_right_3
-  STA corner_down_right_4
-  STA corner_down_right_5
-  STA corner_down_right_6
-  STA corner_down_right_7
-  STA corner_down_right_8
-
-  JMP @end
   @notbiggerthan3:
   CMP #$03
   BCS @biggerthan2
   JMP @notbiggerthan2
   @biggerthan2:
 
-  LDA #$61
-  STA corner_up_left_8
-  LDA #$62
-  STA corner_up_right_8
-  LDA #$63
-  STA corner_down_left_8
-  LDA #$64
-  STA corner_down_right_8
-  LDA #$54
-  STA s7_up_1_left
-  STA s7_up_2_left
-  STA s7_up_3_left
-  STA s7_up_4_left
-  STA s7_up_5_left
-  STA s7_up_6_left
-  STA s7_up_1_right
-  STA s7_up_2_right
-  STA s7_up_3_right
-  STA s7_up_4_right
-  STA s7_up_5_right
-  STA s7_up_6_right
-  LDA #$55
-  STA s7_down_1_left
-  STA s7_down_2_left
-  STA s7_down_3_left
-  STA s7_down_4_left
-  STA s7_down_5_left
-  STA s7_down_6_left
-  STA s7_down_1_right
-  STA s7_down_2_right
-  STA s7_down_3_right
-  STA s7_down_4_right
-  STA s7_down_5_right
-  STA s7_down_6_right
-  LDA #$33
-  STA s7_middle_1_left
-  STA s7_middle_2_left
-  STA s7_middle_3_left
-  STA s7_middle_4_left
-  STA s7_middle_5_left
-  STA s7_middle_6_left
-  STA s7_middle_7_left
-  STA s7_middle_8_left
-  STA s7_middle_9_left
-  STA s7_middle_10_left
-  STA s7_middle_11_left
-  STA s7_middle_12_left
-  LDA #$32
-  STA s7_middle_1_right
-  STA s7_middle_2_right
-  STA s7_middle_3_right
-  STA s7_middle_4_right
-  STA s7_middle_5_right
-  STA s7_middle_6_right
-  STA s7_middle_7_right
-  STA s7_middle_8_right
-  STA s7_middle_9_right
-  STA s7_middle_10_right
-  STA s7_middle_11_right
-  STA s7_middle_12_right
+  LDA #$2C
+  STA corner_up_left_10
+  LDA #$2D
+  STA corner_up_right_10
+  LDA #$2E
+  STA corner_down_left_10
+  LDA #$2F
+  STA corner_down_right_10
+  LDA #$52
+  STA s5_up_1_left
+  STA s5_up_2_left
+  STA s5_up_3_left
+  STA s5_up_4_left
+  STA s5_up_1_right
+  STA s5_up_2_right
+  STA s5_up_3_right
+  STA s5_up_4_right
+  LDA #$53
+  STA s5_down_1_left
+  STA s5_down_2_left
+  STA s5_down_3_left
+  STA s5_down_4_left
+  STA s5_down_1_right
+  STA s5_down_2_right
+  STA s5_down_3_right
+  STA s5_down_4_right
+  LDA #$30
+  STA s5_middle_1_left
+  STA s5_middle_2_left
+  STA s5_middle_3_left
+  STA s5_middle_4_left
+  STA s5_middle_5_left
+  STA s5_middle_6_left
+  STA s5_middle_7_left
+  STA s5_middle_8_left
+  LDA #$31
+  STA s5_middle_1_right
+  STA s5_middle_2_right
+  STA s5_middle_3_right
+  STA s5_middle_4_right
+  STA s5_middle_5_right
+  STA s5_middle_6_right
+  STA s5_middle_7_right
+  STA s5_middle_8_right
 
   LDA #$38
   STA corner_up_left_1
@@ -3788,6 +3594,8 @@ updateBGdrawingHallwayEnd:
   STA corner_up_left_5
   STA corner_up_left_6
   STA corner_up_left_7
+  STA corner_up_left_8
+  STA corner_up_left_9
   LDA #$39
   STA corner_up_right_1
   STA corner_up_right_2
@@ -3796,6 +3604,8 @@ updateBGdrawingHallwayEnd:
   STA corner_up_right_5
   STA corner_up_right_6
   STA corner_up_right_7
+  STA corner_up_right_8
+  STA corner_up_right_9
   LDA #$39
   STA corner_down_left_1
   STA corner_down_left_2
@@ -3804,6 +3614,8 @@ updateBGdrawingHallwayEnd:
   STA corner_down_left_5
   STA corner_down_left_6
   STA corner_down_left_7
+  STA corner_down_left_8
+  STA corner_down_left_9
   LDA #$38
   STA corner_down_right_1
   STA corner_down_right_2
@@ -3812,6 +3624,8 @@ updateBGdrawingHallwayEnd:
   STA corner_down_right_5
   STA corner_down_right_6
   STA corner_down_right_7
+  STA corner_down_right_8
+  STA corner_down_right_9
 
   JMP @end
   @notbiggerthan2:
@@ -4052,6 +3866,2270 @@ LoadDirectionSprite:
   STA $0201
   RTS
 
+findAllLeftPath:
+  LDA #$00
+  STA rayLeft1Length
+  STA rayLeft2Length
+  STA rayLeft3Length
+  STA rayLeft4Length
+  STA rayLeft5Length
+  @hasBranchPath:
+  LDA direction
+  AND #$0E                 ; if this bitmask operation leave a bit the direction is not north
+  BNE @notNorth
+  LDX indexByte
+  LDA j
+  CMP #$80
+  BNE @notAtBeginingOfByte
+  DEX
+  LDA #$01
+  @notAtBeginingOfByte:
+  STA raytemp
+  LDY #$00
+  @checkNextSquareNorth:
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingNorth
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingNorth:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA j
+  CMP #$80
+  BEQ @cannotShiftRight
+  LDA $0300,X
+  LSR
+  BVC @bitBeginCheck
+  @cannotShiftRight:
+  LDA $0300,X
+  @bitBeginCheck:
+  AND raytemp
+  BEQ @changeRaycheckNorth
+  DEX
+  DEX
+  DEX
+  DEX
+  BVC @checkNextSquareNorth
+  @changeRaycheckNorth:
+  DEX
+  DEX
+  DEX
+  DEX
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  CPY #$05
+  BNE @checkNextSquareNorth
+  JMP @end
+  @notNorth:
+  AND #$0C
+  BEQ @West
+  JMP @notWest
+  @West:
+  LDX indexByte
+  LDA #$00
+  STA rayBranchIndex
+  INX
+  INX
+  INX
+  INX
+  @checkNextSquareWest:
+  LDA $0300,X
+  LDY j
+  STA tempnybble
+  @checkFirstByteWest:
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingWest
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingWest:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA tempnybble
+  AND j
+  BNE @continueWestCheck
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueWestCheck
+  JMP @end
+  @continueWestCheck:
+  LDA tempnybble
+  LSR
+  STA tempnybble
+  LDY raytemp
+  CPY #$80
+  BEQ @doneFirstByteWest
+  TYA
+  ASL
+  TAY
+  LDA tempnybble
+  BVC @checkFirstByteWest
+  @doneFirstByteWest:
+  LDA #$03
+  STA tempnybble
+  @checkAdjacentByteWest:
+  DEX
+  LDA $0300,X
+  STA timer
+  LDY #$08
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingWest2
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingWest2:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA timer
+  AND #$01
+  BNE @continueAdjacentWestCheck
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueAdjacentWestCheck
+  JMP @end
+  @continueAdjacentWestCheck:
+  DEC raytemp
+  @loopWest:
+  LDA timer
+  LSR
+  STA timer
+  LDY rayBranchIndex
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingWest3
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingWest3:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA timer
+  AND #$01
+  BNE @branchNotFound
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @branchNotFound
+  JMP @end
+  @branchNotFound:
+  LDY raytemp
+  DEY
+  STY raytemp
+  BNE @loopWest
+  LDA tempnybble
+  SEC
+  SBC #$01
+  BNE @loopNotfinish
+  JMP @end
+  @loopNotfinish:
+  STA tempnybble
+  BNE @checkAdjacentByteWest
+
+  @notWest:
+  AND #$08
+  BNE @notSouth
+  LDX indexByte
+  LDA j
+  CMP #$01
+  BNE @notAtEndOfByte
+  LDA #$80
+  INX
+  @notAtEndOfByte:
+  STA raytemp
+  LDY #$00
+  @checkNextSquareSouth:
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingSouth
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingSouth:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA j
+  CMP #$01
+  BEQ @cannotShiftLeft
+  LDA $0300,X
+  ASL
+  BVC @bitEndCheck
+  @cannotShiftLeft:
+  LDA $0300,X
+  @bitEndCheck:
+  AND raytemp
+  BEQ @changeRaycheckSouth
+  INX
+  INX
+  INX
+  INX
+  BVC @checkNextSquareSouth
+  @changeRaycheckSouth:
+  INX
+  INX
+  INX
+  INX
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  CPY #$05
+  BNE @checkNextSquareSouth
+  JMP @end
+  @notSouth:
+  LDX indexByte
+  LDA #$00
+  STA rayBranchIndex
+  DEX
+  DEX
+  DEX
+  DEX
+  @checkNextSquareEast:
+  LDA $0300,X
+  LDY j
+  STA tempnybble
+  @checkFirstByteEast:
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingEast
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingEast:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA tempnybble
+  AND j
+  BNE @continueEastCheck
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueEastCheck
+  JMP @end
+  @continueEastCheck:
+  LDA tempnybble
+  ASL
+  STA tempnybble
+  LDY raytemp
+  CPY #$01
+  BEQ @doneFirstByteEast
+  TYA
+  LSR
+  TAY
+  LDA tempnybble
+  BVC @checkFirstByteEast
+  @doneFirstByteEast:
+  LDA #$03
+  STA tempnybble
+  @checkAdjacentByteEast:
+  INX
+  LDA $0300,X
+  STA timer
+  LDY #$08
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingEast2
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingEast2:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA timer
+  AND #$80
+  BNE @continueAdjacentEastCheck
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueAdjacentEastCheck
+  JMP @end
+  @continueAdjacentEastCheck:
+  DEC raytemp
+  @loopEast:
+  LDA timer
+  ASL
+  STA timer
+  LDY rayBranchIndex
+  LDA rayLeft1Length,Y
+  CMP rayLength
+  BNE @continueCheckingEast3
+  LDA #$00
+  STA rayLeft1Length,Y
+  JMP @end
+  @continueCheckingEast3:
+  CLC
+  ADC #$01
+  STA rayLeft1Length,Y
+  LDA timer
+  AND #$80
+  BNE @branchNotFoundEast
+  LDA rayLeft1Length,Y
+  INY
+  STA rayLeft1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @branchNotFoundEast
+  JMP @end
+  @branchNotFoundEast:
+  LDY raytemp
+  DEY
+  STY raytemp
+  BNE @loopEast
+  LDA tempnybble
+  SEC
+  SBC #$01
+  BEQ @end
+  STA tempnybble
+  BNE @checkAdjacentByteEast
+  @end:
+  RTS
+
+findAllRightPath:
+  LDA #$00
+  STA rayRight1Length
+  STA rayRight2Length
+  STA rayRight3Length
+  STA rayRight4Length
+  STA rayRight5Length
+  @hasBranchPath:
+  LDA direction
+  AND #$0E                 ; if this bitmask operation leave a bit the direction is not north
+  BNE @notNorth
+  LDX indexByte
+  LDA j
+  CMP #$01
+  BNE @notAtEndOfByte
+  LDA #$80
+  INX
+  @notAtEndOfByte:
+  STA raytemp
+  LDY #$00
+  @checkNextSquareNorth:
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingNorth
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingNorth:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA j
+  CMP #$01
+  BEQ @cannotShiftLeft
+  LDA $0300,X
+  ASL
+  BVC @bitEndCheck
+  @cannotShiftLeft:
+  LDA $0300,X
+  @bitEndCheck:
+  AND raytemp
+  BEQ @changeRaycheckNorth
+  DEX
+  DEX
+  DEX
+  DEX
+  BVC @checkNextSquareNorth
+  @changeRaycheckNorth:
+  DEX
+  DEX
+  DEX
+  DEX
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  CPY #$05
+  BNE @checkNextSquareNorth
+  JMP @end
+  @notNorth:
+  AND #$0C
+  BEQ @West
+  JMP @notWest
+  @West:
+  LDX indexByte
+  LDA #$00
+  STA rayBranchIndex
+  DEX
+  DEX
+  DEX
+  DEX
+  @checkNextSquareWest:
+  LDA $0300,X
+  LDY j
+  STA tempnybble
+  @checkFirstByteWest:
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingWest
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingWest:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA tempnybble
+  AND j
+  BNE @continueWestCheck
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueWestCheck
+  JMP @end
+  @continueWestCheck:
+  LDA tempnybble
+  LSR
+  STA tempnybble
+  LDY raytemp
+  CPY #$80
+  BEQ @doneFirstByteWest
+  TYA
+  ASL
+  TAY
+  LDA tempnybble
+  BVC @checkFirstByteWest
+  @doneFirstByteWest:
+  LDA #$03
+  STA tempnybble
+  @checkAdjacentByteWest:
+  DEX
+  LDA $0300,X
+  STA timer
+  LDY #$08
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingWest2
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingWest2:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA timer
+  AND #$01
+  BNE @continueAdjacentWestCheck
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueAdjacentWestCheck
+  JMP @end
+  @continueAdjacentWestCheck:
+  DEC raytemp
+  @loopWest:
+  LDA timer
+  LSR
+  STA timer
+  LDY rayBranchIndex
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingWest3
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingWest3:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA timer
+  AND #$01
+  BNE @branchNotFound
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @branchNotFound
+  JMP @end
+  @branchNotFound:
+  LDY raytemp
+  DEY
+  STY raytemp
+  BNE @loopWest
+  LDA tempnybble
+  SEC
+  SBC #$01
+  BNE @loopNotfinish
+  JMP @end
+  @loopNotfinish:
+  STA tempnybble
+  BNE @checkAdjacentByteWest
+
+  @notWest:
+  AND #$08
+  BNE @notSouth
+  LDX indexByte
+  LDA j
+  CMP #$80
+  BNE @notAtBeginingOfByte
+  DEX
+  LDA #$01
+  @notAtBeginingOfByte:
+  STA raytemp
+  LDY #$00
+  @checkNextSquareSouth:
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingSouth
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingSouth:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA j
+  CMP #$80
+  BEQ @cannotShiftRight
+  LDA $0300,X
+  LSR
+  BVC @bitBeginCheck
+  @cannotShiftRight:
+  LDA $0300,X
+  @bitBeginCheck:
+  AND raytemp
+  BEQ @changeRaycheckSouth
+  INX
+  INX
+  INX
+  INX
+  BVC @checkNextSquareSouth
+  @changeRaycheckSouth:
+  INX
+  INX
+  INX
+  INX
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  CPY #$05
+  BNE @checkNextSquareSouth
+  JMP @end
+  @notSouth:
+  LDX indexByte
+  LDA #$00
+  STA rayBranchIndex
+  INX
+  INX
+  INX
+  INX
+  @checkNextSquareEast:
+  LDA $0300,X
+  LDY j
+  STA tempnybble
+  @checkFirstByteEast:
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingEast
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingEast:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA tempnybble
+  AND j
+  BNE @continueEastCheck
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueEastCheck
+  JMP @end
+  @continueEastCheck:
+  LDA tempnybble
+  ASL
+  STA tempnybble
+  LDY raytemp
+  CPY #$01
+  BEQ @doneFirstByteEast
+  TYA
+  LSR
+  TAY
+  LDA tempnybble
+  BVC @checkFirstByteEast
+  @doneFirstByteEast:
+  LDA #$03
+  STA tempnybble
+  @checkAdjacentByteEast:
+  INX
+  LDA $0300,X
+  STA timer
+  LDY #$08
+  STY raytemp
+  LDY rayBranchIndex
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingEast2
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingEast2:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA timer
+  AND #$80
+  BNE @continueAdjacentEastCheck
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @continueAdjacentEastCheck
+  JMP @end
+  @continueAdjacentEastCheck:
+  DEC raytemp
+  @loopEast:
+  LDA timer
+  ASL
+  STA timer
+  LDY rayBranchIndex
+  LDA rayRight1Length,Y
+  CMP rayLength
+  BNE @continueCheckingEast3
+  LDA #$00
+  STA rayRight1Length,Y
+  JMP @end
+  @continueCheckingEast3:
+  CLC
+  ADC #$01
+  STA rayRight1Length,Y
+  LDA timer
+  AND #$80
+  BNE @branchNotFoundEast
+  LDA rayRight1Length,Y
+  INY
+  STA rayRight1Length,Y
+  STY rayBranchIndex
+  CPY #$05
+  BNE @branchNotFoundEast
+  JMP @end
+  @branchNotFoundEast:
+  LDY raytemp
+  DEY
+  STY raytemp
+  BNE @loopEast
+  LDA tempnybble
+  SEC
+  SBC #$01
+  BEQ @end
+  STA tempnybble
+  BNE @checkAdjacentByteEast
+  @end:
+  RTS
+
+updateBG_BranchingPathLeft:
+  LDX #$00
+  @loop:
+  LDA rayLeft1Length,X
+  CMP #$1F
+  BCS @biggerthan30
+  JMP @notbiggerthan30
+  @biggerthan30:
+
+  
+
+  JMP @end
+  @notbiggerthan30:
+  CMP #$1E
+  BCS @biggerthan29
+  JMP @notbiggerthan29
+  @biggerthan29:
+
+
+
+  JMP @end
+  @notbiggerthan29:
+  CMP #$1D
+  BCS @biggerthan28
+  JMP @notbiggerthan28
+  @biggerthan28:
+
+  
+
+  JMP @end
+  @notbiggerthan28:
+  CMP #$1C
+  BCS @biggerthan27
+  JMP @notbiggerthan27
+  @biggerthan27:
+
+  
+
+  JMP @end
+  @notbiggerthan27:
+  CMP #$1B
+  BCS @biggerthan26
+  JMP @notbiggerthan26
+  @biggerthan26:
+
+  
+
+  JMP @end
+  @notbiggerthan26:
+  CMP #$1A
+  BCS @biggerthan25
+  JMP @notbiggerthan25
+  @biggerthan25:
+
+  
+
+  JMP @end
+  @notbiggerthan25:
+  CMP #$19
+  BCS @biggerthan24
+  JMP @notbiggerthan24
+  @biggerthan24:
+
+  
+
+  JMP @end
+  @notbiggerthan24:
+  CMP #$18
+  BCS @biggerthan23
+  JMP @notbiggerthan23
+  @biggerthan23:
+
+  
+
+  JMP @end
+  @notbiggerthan23:
+  CMP #$17
+  BCS @biggerthan22
+  JMP @notbiggerthan22
+  @biggerthan22:
+
+  
+
+  JMP @end
+  @notbiggerthan22:
+  CMP #$16
+  BCS @biggerthan21
+  JMP @notbiggerthan21
+  @biggerthan21:
+
+  
+
+  JMP @end
+  @notbiggerthan21:
+  CMP #$15
+  BCS @biggerthan20
+  JMP @notbiggerthan20
+  @biggerthan20:
+
+  
+
+  JMP @end
+  @notbiggerthan20:
+  CMP #$14
+  BCS @biggerthan19
+  JMP @notbiggerthan19
+  @biggerthan19:
+
+  
+
+  JMP @end
+  @notbiggerthan19:
+  CMP #$13
+  BCS @biggerthan18
+  JMP @notbiggerthan18
+  @biggerthan18:
+
+  
+
+  JMP @end
+  @notbiggerthan18:
+  CMP #$12
+  BCS @biggerthan17
+  JMP @notbiggerthan17
+  @biggerthan17:
+
+  
+
+  JMP @end
+  @notbiggerthan17:
+  CMP #$11
+  BCS @biggerthan16
+  JMP @notbiggerthan16
+  @biggerthan16:
+
+  
+
+  JMP @end
+  @notbiggerthan16:
+  CMP #$10
+  BCS @biggerthan15
+  JMP @notbiggerthan15
+  @biggerthan15:
+
+  
+
+  JMP @end
+  @notbiggerthan15:
+  CMP #$0F
+  BCS @biggerthan14
+  JMP @notbiggerthan14
+  @biggerthan14:
+
+  
+
+  JMP @end
+  @notbiggerthan14:
+  CMP #$0E
+  BCS @biggerthan13
+  JMP @notbiggerthan13
+  @biggerthan13:
+
+  
+
+  JMP @end
+  @notbiggerthan13:
+  CMP #$0D
+  BCS @biggerthan12
+  JMP @notbiggerthan12
+  @biggerthan12:
+
+  
+
+  JMP @end
+  @notbiggerthan12:
+  CMP #$0C
+  BCS @biggerthan11
+  JMP @notbiggerthan11
+  @biggerthan11:
+
+  
+
+  JMP @end
+  @notbiggerthan11:
+  CMP #$0B
+  BCS @biggerthan10
+  JMP @notbiggerthan10
+  @biggerthan10:
+
+  
+
+  JMP @end
+  @notbiggerthan10:
+  CMP #$0A
+  BCS @biggerthan9
+  JMP @notbiggerthan9
+  @biggerthan9:
+
+  
+
+  JMP @end
+  @notbiggerthan9:
+  CMP #$09
+  BCS @biggerthan8
+  JMP @notbiggerthan8
+  @biggerthan8:
+
+  
+
+  JMP @end
+  @notbiggerthan8:
+  CMP #$08
+  BCS @biggerthan7
+  JMP @notbiggerthan7
+  @biggerthan7:
+
+  
+
+  JMP @end
+  @notbiggerthan7:
+  CMP #$07
+  BCS @biggerthan6
+  JMP @notbiggerthan6
+  @biggerthan6:
+
+  LDA rayLength
+  CMP #$07
+  BEQ @flatSurface7
+
+  JMP @end
+  @flatSurface7:
+
+  DEX
+  LDA rayLeft1Length,X
+  CMP #$05
+  BEQ @smallCorrection
+  INX
+
+  JMP @end
+  @smallCorrection:
+  INX
+  LDA #$AD
+  STA corner_up_left_12
+  LDA #$AF
+  STA corner_down_left_12
+  LDA #$4B
+  STA s3_middle_1_left
+  STA s3_middle_2_left
+  STA s3_middle_3_left
+  STA s3_middle_4_left
+
+  JMP @end
+  @notbiggerthan6:
+  CMP #$06
+  BCS @biggerthan5
+  JMP @notbiggerthan5
+  @biggerthan5:
+
+  LDA rayLength
+  CMP #$06
+  BNE @check7
+  LDA #$79
+  STA corner_up_left_12
+  LDA #$7B
+  STA corner_down_left_12
+  LDA #$A5
+  STA s3_middle_1_left
+  STA s3_middle_2_left
+  STA s3_middle_3_left
+  STA s3_middle_4_left
+  JMP @end
+  @check7:
+  CMP #$07
+  BNE @check8
+  LDA #$79
+  STA corner_up_left_13
+  LDA #$7B
+  STA corner_down_left_13
+  LDA #$A5
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check8:
+  CMP #$08
+  BNE @check9
+  LDA #$8E
+  STA corner_down_left_13
+  STA corner_up_left_13
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check9:
+  CMP #$09
+  BNE @check10
+  LDA #$A7
+  STA corner_up_left_13
+  LDA #$A8
+  STA corner_down_left_13
+  LDA #$8E
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check10:
+  CMP #$0A
+  BNE @check11
+  LDA #$89
+  STA corner_up_left_13
+  LDA #$8B
+  STA corner_down_left_13
+  LDA #$8E
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check11:
+  CMP #$0B
+  BNE @check12
+  LDA #$79
+  STA corner_up_left_13
+  LDA #$7B
+  STA corner_down_left_13
+  LDA #$A5
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check12:
+  CMP #$0C
+  BNE @check13
+  LDA #$81
+  STA corner_up_left_13
+  LDA #$83
+  STA corner_down_left_13
+  LDA #$A6
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check13:
+  CMP #$0D
+  BNE @check14
+  LDA #$7D
+  STA corner_up_left_13
+  LDA #$7F
+  STA corner_down_left_13
+  LDA #$B9
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check14:
+  CMP #$0E
+  BNE @check15
+  LDA #$79
+  STA corner_up_left_13
+  LDA #$7B
+  STA corner_down_left_13
+  LDA #$A5
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @check15:
+  CMP #$0F
+  BNE @larger
+  LDA #$79
+  STA corner_up_left_13
+  LDA #$7B
+  STA corner_down_left_13
+  LDA #$A5
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @larger:
+  LDA #$B1
+  STA corner_up_left_13
+  LDA #$B3
+  STA corner_down_left_13
+  LDA #$A5
+  STA s2_middle_1_left
+  STA s2_middle_2_left
+  JMP @end
+  @notbiggerthan5:
+  CMP #$05
+  BCS @biggerthan4
+  JMP @notbiggerthan4
+  @biggerthan4:
+
+  LDA rayLength
+  CMP #$05
+  BEQ @flatSurface5
+  CMP #$06
+  BEQ @check5To6
+  CMP #$07
+  BEQ @cornerCorectionFor5To7
+
+  LDA #$46
+  STA corner_up_left_12
+  LDA #$48
+  STA corner_down_left_12
+  LDA #$4A
+  STA s3_middle_1_left
+  STA s3_middle_2_left
+  STA s3_middle_3_left
+  STA s3_middle_4_left
+
+  JMP @end
+  @flatSurface5:
+  LDA #$A9
+  STA corner_up_left_12
+  LDA #$AB
+  STA corner_down_left_12
+  LDA #$30
+  STA s3_middle_1_left
+  STA s3_middle_2_left
+  STA s3_middle_3_left
+  STA s3_middle_4_left
+  JMP @end
+  @check5To6:
+  LDA #$BB
+  STA corner_up_right_12
+  LDA #$BD
+  STA corner_down_right_12
+  LDA #$4A
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+
+  JMP @end
+  @cornerCorectionFor5To7:
+  LDA #$B5
+  STA corner_up_left_12
+  LDA #$B7
+  STA corner_down_left_12
+  LDA #$4A
+  STA s3_middle_1_left
+  STA s3_middle_2_left
+  STA s3_middle_3_left
+  STA s3_middle_4_left
+
+  JMP @end
+  @notbiggerthan4:
+  CMP #$04
+  BCS @biggerthan3
+  JMP @notbiggerthan3
+  @biggerthan3:
+
+  LDA #$3B
+  STA corner_up_left_10
+  LDA #$3A
+  STA corner_down_left_10
+  LDA #$35
+  STA s5_middle_2_left
+  STA s5_middle_3_left
+  STA s5_middle_4_left
+  STA s5_middle_5_left
+  STA s5_middle_6_left
+  STA s5_middle_7_left
+
+  LDA rayLength
+  CMP #$04
+  BEQ @flatSurface4
+  
+  LDA #$3E
+  STA s5_middle_1_left
+  LDA #$40
+  STA s5_middle_8_left
+  LDA #$44
+  STA corner_up_left_11
+  LDA #$42
+  STA corner_down_left_11
+  LDA #$37
+  STA s4_middle_1_left
+  STA s4_middle_2_left
+  STA s4_middle_3_left
+  STA s4_middle_4_left
+  STA s4_middle_5_left
+  STA s4_middle_6_left
+
+  JMP @end
+  @flatSurface4:
+
+  LDA #$A1
+  STA s5_middle_1_left
+  LDA #$A3
+  STA s5_middle_8_left
+  LDA #$58
+  STA corner_up_left_11
+  LDA #$59
+  STA corner_down_left_11
+  LDA #$24
+  STA s4_middle_1_left
+  STA s4_middle_2_left
+  STA s4_middle_3_left
+  STA s4_middle_4_left
+  STA s4_middle_5_left
+  STA s4_middle_6_left
+
+  JMP @end
+  @notbiggerthan3:
+  CMP #$03
+  BCS @biggerthan2
+  JMP @notbiggerthan2
+  @biggerthan2:
+
+  LDA #$3B
+  STA corner_up_left_7
+  LDA #$3A
+  STA corner_down_left_7
+  LDA #$35
+  STA s8_middle_1_left 
+  STA s8_middle_2_left
+  STA s8_middle_4_left 
+  STA s8_middle_5_left 
+  STA s8_middle_6_left 
+  STA s8_middle_7_left 
+  STA s8_middle_8_left 
+  STA s8_middle_9_left 
+  STA s8_middle_10_left
+  STA s8_middle_11_left
+  STA s8_middle_12_left
+  STA s8_middle_13_left
+  STA s8_middle_14_left
+  LDA #$24
+  STA corner_up_left_8
+  STA corner_up_left_9
+  STA corner_down_left_8
+  STA corner_down_left_9
+
+  LDA rayLength
+  CMP #$03
+  BEQ @flatSurface3
+  LDA #$3E
+  STA s8_middle_3_left
+  LDA #$40
+  STA s8_middle_12_left
+  LDA #$44
+  STA corner_up_left_10
+  LDA #$42
+  STA corner_down_left_10
+  LDA #$37
+  STA s5_middle_1_left
+  STA s5_middle_2_left
+  STA s5_middle_3_left
+  STA s5_middle_4_left
+  STA s5_middle_5_left
+  STA s5_middle_6_left
+  STA s5_middle_7_left
+  STA s5_middle_8_left
+  LDA #$56
+  STA s7_middle_2_left
+  STA s6_middle_1_left
+  LDA #$57
+  STA s7_middle_11_left
+  STA s6_middle_10_left
+
+  JMP @end
+  @flatSurface3:
+  LDA #$9D
+  STA s8_middle_3_left
+  LDA #$9F
+  STA s8_middle_12_left
+  LDA #$52
+  STA corner_up_left_10
+  STA s7_middle_2_left
+  STA s6_middle_1_left
+  LDA #$53
+  STA corner_down_left_10
+  STA s7_middle_11_left
+  STA s6_middle_10_left
+  LDA #$24
+  STA s5_middle_1_left
+  STA s5_middle_2_left
+  STA s5_middle_3_left
+  STA s5_middle_4_left
+  STA s5_middle_5_left
+  STA s5_middle_6_left
+  STA s5_middle_7_left
+  STA s5_middle_8_left
+
+  JMP @end
+  @notbiggerthan2:
+  CMP #$02
+  BCS @biggerthan1
+  JMP @notbiggerthan1
+  @biggerthan1:
+
+  LDA #$3B
+  STA corner_up_left_1
+  LDA #$3A
+  STA corner_down_left_1
+  LDA #$35
+  STA sE_middle_1_left 
+  STA sE_middle_2_left 
+  STA sE_middle_3_left 
+  STA sE_middle_4_left 
+  STA sE_middle_5_left
+  STA sE_middle_7_left 
+  STA sE_middle_8_left 
+  STA sE_middle_9_left 
+  STA sE_middle_10_left
+  STA sE_middle_11_left
+  STA sE_middle_12_left
+  STA sE_middle_13_left
+  STA sE_middle_14_left
+  STA sE_middle_15_left
+  STA sE_middle_16_left
+  STA sE_middle_17_left
+  STA sE_middle_18_left
+  STA sE_middle_19_left
+  STA sE_middle_20_left
+  STA sE_middle_22_left
+  STA sE_middle_23_left
+  STA sE_middle_24_left
+  STA sE_middle_25_left
+  STA sE_middle_26_left
+  LDA #$24
+  STA corner_up_left_2
+  STA corner_up_left_3
+  STA corner_up_left_4
+  STA corner_up_left_5
+  STA corner_up_left_6
+  STA corner_down_left_2
+  STA corner_down_left_3
+  STA corner_down_left_4
+  STA corner_down_left_5
+  STA corner_down_left_6
+  
+  LDA rayLength
+  CMP #$02
+  BEQ @flatSurface2 
+
+  LDA #$3E
+  STA sE_middle_6_left
+  LDA #$40
+  STA sE_middle_21_left
+  LDA #$44
+  STA corner_up_left_7
+  LDA #$42
+  STA corner_down_left_7
+  LDA #$37
+  STA s8_middle_1_left 
+  STA s8_middle_2_left 
+  STA s8_middle_3_left 
+  STA s8_middle_4_left 
+  STA s8_middle_5_left 
+  STA s8_middle_6_left 
+  STA s8_middle_7_left 
+  STA s8_middle_8_left 
+  STA s8_middle_9_left 
+  STA s8_middle_10_left
+  STA s8_middle_11_left
+  STA s8_middle_12_left
+  STA s8_middle_13_left
+  STA s8_middle_14_left
+  LDA #$56
+  STA s9_middle_1_left
+  STA sA_middle_2_left
+  STA sB_middle_3_left
+  STA sC_middle_4_left
+  STA sD_middle_5_left
+  LDA #$57
+  STA s9_middle_16_left
+  STA sA_middle_17_left
+  STA sB_middle_18_left
+  STA sC_middle_19_left
+  STA sD_middle_20_left
+
+  JMP @end
+  @flatSurface2:
+  LDA #$9D
+  STA sE_middle_6_left
+  LDA #$9F
+  STA sE_middle_21_left
+  LDA #$52
+  STA corner_up_left_7
+  STA s9_middle_1_left
+  STA sA_middle_2_left
+  STA sB_middle_3_left
+  STA sC_middle_4_left
+  STA sD_middle_5_left
+  LDA #$53
+  STA corner_down_left_7
+  STA s9_middle_16_left
+  STA sA_middle_17_left
+  STA sB_middle_18_left
+  STA sC_middle_19_left
+  STA sD_middle_20_left
+  LDA #$24
+  STA s8_middle_1_left
+  STA s8_middle_2_left
+  STA s8_middle_3_left
+  STA s8_middle_4_left
+  STA s8_middle_5_left
+  STA s8_middle_6_left
+  STA s8_middle_7_left
+  STA s8_middle_8_left
+  STA s8_middle_9_left
+  STA s8_middle_10_left
+  STA s8_middle_11_left
+  STA s8_middle_12_left
+  STA s8_middle_13_left
+  STA s8_middle_14_left
+
+  JMP @end
+  @notbiggerthan1:
+  CMP #$00
+  BNE @biggerthan0
+  JMP @end
+  @biggerthan0:
+  LDA rayLength
+  CMP #$01
+  BEQ @flatSurface
+
+
+  LDA #$44
+  STA corner_up_left_1
+  LDA #$42
+  STA corner_down_left_1
+  LDA #$37
+  STA sE_middle_1_left 
+  STA sE_middle_2_left 
+  STA sE_middle_3_left 
+  STA sE_middle_4_left 
+  STA sE_middle_5_left 
+  STA sE_middle_6_left 
+  STA sE_middle_7_left 
+  STA sE_middle_8_left 
+  STA sE_middle_9_left 
+  STA sE_middle_10_left
+  STA sE_middle_11_left
+  STA sE_middle_12_left
+  STA sE_middle_13_left
+  STA sE_middle_14_left
+  STA sE_middle_15_left
+  STA sE_middle_16_left
+  STA sE_middle_17_left
+  STA sE_middle_18_left
+  STA sE_middle_19_left
+  STA sE_middle_20_left
+  STA sE_middle_21_left
+  STA sE_middle_22_left
+  STA sE_middle_23_left
+  STA sE_middle_24_left
+  STA sE_middle_25_left
+  STA sE_middle_26_left
+  JMP @end
+  @flatSurface:
+  LDA #$24
+  STA sE_middle_1_left 
+  STA sE_middle_2_left 
+  STA sE_middle_3_left 
+  STA sE_middle_4_left 
+  STA sE_middle_5_left 
+  STA sE_middle_6_left 
+  STA sE_middle_7_left 
+  STA sE_middle_8_left 
+  STA sE_middle_9_left 
+  STA sE_middle_10_left
+  STA sE_middle_11_left
+  STA sE_middle_12_left
+  STA sE_middle_13_left
+  STA sE_middle_14_left
+  STA sE_middle_15_left
+  STA sE_middle_16_left
+  STA sE_middle_17_left
+  STA sE_middle_18_left
+  STA sE_middle_19_left
+  STA sE_middle_20_left
+  STA sE_middle_21_left
+  STA sE_middle_22_left
+  STA sE_middle_23_left
+  STA sE_middle_24_left
+  STA sE_middle_25_left
+  STA sE_middle_26_left
+  LDA #$56
+  STA corner_up_left_1
+  LDA #$57
+  STA corner_down_left_1
+
+  @end:
+  INX
+  CPX #$05
+  BEQ @return
+  JMP @loop
+  @return:
+  RTS
+
+updateBG_BranchingPathRight:
+  LDX #$00
+  @loop:
+  LDA rayRight1Length,X
+  CMP #$1F
+  BCS @biggerthan30
+  JMP @notbiggerthan30
+  @biggerthan30:
+
+  
+
+  JMP @end
+  @notbiggerthan30:
+  CMP #$1E
+  BCS @biggerthan29
+  JMP @notbiggerthan29
+  @biggerthan29:
+
+
+
+  JMP @end
+  @notbiggerthan29:
+  CMP #$1D
+  BCS @biggerthan28
+  JMP @notbiggerthan28
+  @biggerthan28:
+
+  
+
+  JMP @end
+  @notbiggerthan28:
+  CMP #$1C
+  BCS @biggerthan27
+  JMP @notbiggerthan27
+  @biggerthan27:
+
+  
+
+  JMP @end
+  @notbiggerthan27:
+  CMP #$1B
+  BCS @biggerthan26
+  JMP @notbiggerthan26
+  @biggerthan26:
+
+  
+
+  JMP @end
+  @notbiggerthan26:
+  CMP #$1A
+  BCS @biggerthan25
+  JMP @notbiggerthan25
+  @biggerthan25:
+
+  
+
+  JMP @end
+  @notbiggerthan25:
+  CMP #$19
+  BCS @biggerthan24
+  JMP @notbiggerthan24
+  @biggerthan24:
+
+  
+
+  JMP @end
+  @notbiggerthan24:
+  CMP #$18
+  BCS @biggerthan23
+  JMP @notbiggerthan23
+  @biggerthan23:
+
+  
+
+  JMP @end
+  @notbiggerthan23:
+  CMP #$17
+  BCS @biggerthan22
+  JMP @notbiggerthan22
+  @biggerthan22:
+
+  
+
+  JMP @end
+  @notbiggerthan22:
+  CMP #$16
+  BCS @biggerthan21
+  JMP @notbiggerthan21
+  @biggerthan21:
+
+  
+
+  JMP @end
+  @notbiggerthan21:
+  CMP #$15
+  BCS @biggerthan20
+  JMP @notbiggerthan20
+  @biggerthan20:
+
+  
+
+  JMP @end
+  @notbiggerthan20:
+  CMP #$14
+  BCS @biggerthan19
+  JMP @notbiggerthan19
+  @biggerthan19:
+
+  
+
+  JMP @end
+  @notbiggerthan19:
+  CMP #$13
+  BCS @biggerthan18
+  JMP @notbiggerthan18
+  @biggerthan18:
+
+  
+
+  JMP @end
+  @notbiggerthan18:
+  CMP #$12
+  BCS @biggerthan17
+  JMP @notbiggerthan17
+  @biggerthan17:
+
+  
+
+  JMP @end
+  @notbiggerthan17:
+  CMP #$11
+  BCS @biggerthan16
+  JMP @notbiggerthan16
+  @biggerthan16:
+
+  
+
+  JMP @end
+  @notbiggerthan16:
+  CMP #$10
+  BCS @biggerthan15
+  JMP @notbiggerthan15
+  @biggerthan15:
+
+  
+
+  JMP @end
+  @notbiggerthan15:
+  CMP #$0F
+  BCS @biggerthan14
+  JMP @notbiggerthan14
+  @biggerthan14:
+
+  
+
+  JMP @end
+  @notbiggerthan14:
+  CMP #$0E
+  BCS @biggerthan13
+  JMP @notbiggerthan13
+  @biggerthan13:
+
+  
+
+  JMP @end
+  @notbiggerthan13:
+  CMP #$0D
+  BCS @biggerthan12
+  JMP @notbiggerthan12
+  @biggerthan12:
+
+  
+
+  JMP @end
+  @notbiggerthan12:
+  CMP #$0C
+  BCS @biggerthan11
+  JMP @notbiggerthan11
+  @biggerthan11:
+
+  
+
+  JMP @end
+  @notbiggerthan11:
+  CMP #$0B
+  BCS @biggerthan10
+  JMP @notbiggerthan10
+  @biggerthan10:
+
+  
+
+  JMP @end
+  @notbiggerthan10:
+  CMP #$0A
+  BCS @biggerthan9
+  JMP @notbiggerthan9
+  @biggerthan9:
+
+  
+
+  JMP @end
+  @notbiggerthan9:
+  CMP #$09
+  BCS @biggerthan8
+  JMP @notbiggerthan8
+  @biggerthan8:
+
+  
+
+  JMP @end
+  @notbiggerthan8:
+  CMP #$08
+  BCS @biggerthan7
+  JMP @notbiggerthan7
+  @biggerthan7:
+
+  
+
+  JMP @end
+  @notbiggerthan7:
+  CMP #$07
+  BCS @biggerthan6
+  JMP @notbiggerthan6
+  @biggerthan6:
+
+  LDA rayLength
+  CMP #$07
+  BEQ @flatSurface7
+
+  JMP @end
+  @flatSurface7:
+
+  DEX
+  LDA rayRight1Length,X
+  CMP #$05
+  BEQ @smallCorrection
+  INX
+
+  JMP @end
+  @smallCorrection:
+  INX
+  LDA #$AE
+  STA corner_up_right_12
+  LDA #$B0
+  STA corner_down_right_12
+  LDA #$4C
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+
+  JMP @end
+  @notbiggerthan6:
+  CMP #$06
+  BCS @biggerthan5
+  JMP @notbiggerthan5
+  @biggerthan5:
+
+  LDA rayLength
+  CMP #$06
+  BNE @check7
+  LDA #$7A
+  STA corner_up_right_12
+  LDA #$7C
+  STA corner_down_right_12
+  LDA #$A6
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+  JMP @end
+  @check7:
+  CMP #$07
+  BNE @check8
+  LDA #$7A
+  STA corner_up_right_13
+  LDA #$7C
+  STA corner_down_right_13
+  LDA #$A6
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check8:
+  CMP #$08
+  BNE @check9
+  LDA #$8D
+  STA corner_down_right_13
+  STA corner_up_right_13
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check9:
+  CMP #$09
+  BNE @check10
+  LDA #$8D
+  STA corner_down_right_13
+  STA corner_up_right_13
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check10:
+  CMP #$0A
+  BNE @check11
+  LDA #$8A
+  STA corner_up_right_13
+  LDA #$8C
+  STA corner_down_right_13
+  LDA #$8D
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check11:
+  CMP #$0B
+  BNE @check12
+  LDA #$7A
+  STA corner_up_right_13
+  LDA #$7C
+  STA corner_down_right_13
+  LDA #$A6
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check12:
+  CMP #$0C
+  BNE @check13
+  LDA #$82
+  STA corner_up_right_13
+  LDA #$84
+  STA corner_down_right_13
+  LDA #$A5
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check13:
+  CMP #$0D
+  BNE @check14
+  LDA #$7E
+  STA corner_up_right_13
+  LDA #$80
+  STA corner_down_right_13
+  LDA #$B9
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check14:
+  CMP #$0E
+  BNE @check15
+  LDA #$7A
+  STA corner_up_right_13
+  LDA #$7C
+  STA corner_down_right_13
+  LDA #$A6
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @check15:
+  CMP #$0F
+  BNE @larger
+  LDA #$7A
+  STA corner_up_right_13
+  LDA #$7C
+  STA corner_down_right_13
+  LDA #$A6
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @larger:
+  LDA #$B2
+  STA corner_up_right_13
+  LDA #$B4
+  STA corner_down_right_13
+  LDA #$A6
+  STA s2_middle_1_right
+  STA s2_middle_2_right
+  JMP @end
+  @notbiggerthan5:
+  CMP #$05
+  BCS @biggerthan4
+  JMP @notbiggerthan4
+  @biggerthan4:
+
+  LDA rayLength
+  CMP #$05
+  BEQ @flatSurface5
+  CMP #$06
+  BEQ @check5To6
+  CMP #$07
+  BEQ @cornerCorectionFor5To7
+
+  LDA #$47
+  STA corner_up_right_12
+  LDA #$49
+  STA corner_down_right_12
+  LDA #$4A
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+
+  JMP @end
+  @flatSurface5:
+  LDA #$AA
+  STA corner_up_right_12
+  LDA #$AC
+  STA corner_down_right_12
+  LDA #$31
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+  JMP @end
+  @check5To6:
+  LDA #$BB
+  STA corner_up_right_12
+  LDA #$BD
+  STA corner_down_right_12
+  LDA #$4A
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+
+  JMP @end
+  @cornerCorectionFor5To7:
+  LDA #$B6
+  STA corner_up_right_12
+  LDA #$B8
+  STA corner_down_right_12
+  LDA #$4A
+  STA s3_middle_1_right
+  STA s3_middle_2_right
+  STA s3_middle_3_right
+  STA s3_middle_4_right
+
+  JMP @end
+  @notbiggerthan4:
+  CMP #$04
+  BCS @biggerthan3
+  JMP @notbiggerthan3
+  @biggerthan3:
+
+  LDA #$3D
+  STA corner_up_right_10
+  LDA #$3C
+  STA corner_down_right_10
+  LDA #$34
+  STA s5_middle_2_right
+  STA s5_middle_3_right
+  STA s5_middle_4_right
+  STA s5_middle_5_right
+  STA s5_middle_6_right
+  STA s5_middle_7_right
+
+  LDA rayLength
+  CMP #$04
+  BEQ @flatSurface4
+  
+  LDA #$3F
+  STA s5_middle_1_right
+  LDA #$41
+  STA s5_middle_8_right
+  LDA #$45
+  STA corner_up_right_11
+  LDA #$43
+  STA corner_down_right_11
+  LDA #$36
+  STA s4_middle_1_right
+  STA s4_middle_2_right
+  STA s4_middle_3_right
+  STA s4_middle_4_right
+  STA s4_middle_5_right
+  STA s4_middle_6_right
+
+  JMP @end
+  @flatSurface4:
+
+  LDA #$A2
+  STA s5_middle_1_right
+  LDA #$A4
+  STA s5_middle_8_right
+  LDA #$58
+  STA corner_up_right_11
+  LDA #$59
+  STA corner_down_right_11
+  LDA #$24
+  STA s4_middle_1_right
+  STA s4_middle_2_right
+  STA s4_middle_3_right
+  STA s4_middle_4_right
+  STA s4_middle_5_right
+  STA s4_middle_6_right
+
+  JMP @end
+  @notbiggerthan3:
+  CMP #$03
+  BCS @biggerthan2
+  JMP @notbiggerthan2
+  @biggerthan2:
+
+  LDA #$3D
+  STA corner_up_right_7
+  LDA #$3C
+  STA corner_down_right_7
+  LDA #$34
+  STA s8_middle_1_right
+  STA s8_middle_2_right
+  STA s8_middle_4_right
+  STA s8_middle_5_right
+  STA s8_middle_6_right
+  STA s8_middle_7_right
+  STA s8_middle_8_right
+  STA s8_middle_9_right
+  STA s8_middle_10_right
+  STA s8_middle_11_right
+  STA s8_middle_12_right
+  STA s8_middle_13_right
+  STA s8_middle_14_right
+  LDA #$24
+  STA corner_up_right_8
+  STA corner_up_right_9
+  STA corner_down_right_8
+  STA corner_down_right_9
+
+  LDA rayLength
+  CMP #$03
+  BEQ @flatSurface3
+  LDA #$3F
+  STA s8_middle_3_right
+  LDA #$41
+  STA s8_middle_12_right
+  LDA #$45
+  STA corner_up_right_10
+  LDA #$43
+  STA corner_down_right_10
+  LDA #$36
+  STA s5_middle_1_right
+  STA s5_middle_2_right
+  STA s5_middle_3_right
+  STA s5_middle_4_right
+  STA s5_middle_5_right
+  STA s5_middle_6_right
+  STA s5_middle_7_right
+  STA s5_middle_8_right
+  LDA #$56
+  STA s7_middle_2_right
+  STA s6_middle_1_right
+  LDA #$57
+  STA s7_middle_11_right
+  STA s6_middle_10_right
+
+  JMP @end
+  @flatSurface3:
+  LDA #$9E
+  STA s8_middle_3_right
+  LDA #$A0
+  STA s8_middle_12_right
+  LDA #$52
+  STA corner_up_right_10
+  STA s7_middle_2_right
+  STA s6_middle_1_right
+  LDA #$53
+  STA corner_down_right_10
+  STA s7_middle_11_right
+  STA s6_middle_10_right
+  LDA #$24
+  STA s5_middle_1_right
+  STA s5_middle_2_right
+  STA s5_middle_3_right
+  STA s5_middle_4_right
+  STA s5_middle_5_right
+  STA s5_middle_6_right
+  STA s5_middle_7_right
+  STA s5_middle_8_right
+
+  JMP @end
+  @notbiggerthan2:
+  CMP #$02
+  BCS @biggerthan1
+  JMP @notbiggerthan1
+  @biggerthan1:
+
+  LDA #$3D
+  STA corner_up_right_1
+  LDA #$3C
+  STA corner_down_right_1
+  LDA #$34
+  STA sE_middle_1_right
+  STA sE_middle_2_right
+  STA sE_middle_3_right
+  STA sE_middle_4_right
+  STA sE_middle_5_right
+  STA sE_middle_7_right
+  STA sE_middle_8_right
+  STA sE_middle_9_right
+  STA sE_middle_10_right
+  STA sE_middle_11_right
+  STA sE_middle_12_right
+  STA sE_middle_13_right
+  STA sE_middle_14_right
+  STA sE_middle_15_right
+  STA sE_middle_16_right
+  STA sE_middle_17_right
+  STA sE_middle_18_right
+  STA sE_middle_19_right
+  STA sE_middle_20_right
+  STA sE_middle_22_right
+  STA sE_middle_23_right
+  STA sE_middle_24_right
+  STA sE_middle_25_right
+  STA sE_middle_26_right
+  LDA #$24
+  STA corner_up_right_2
+  STA corner_up_right_3
+  STA corner_up_right_4
+  STA corner_up_right_5
+  STA corner_up_right_6
+  STA corner_down_right_2
+  STA corner_down_right_3
+  STA corner_down_right_4
+  STA corner_down_right_5
+  STA corner_down_right_6
+
+  
+  LDA rayLength
+  CMP #$02
+  BEQ @flatSurface2 
+
+  LDA #$3F
+  STA sE_middle_6_right
+  LDA #$41
+  STA sE_middle_21_right
+  LDA #$45
+  STA corner_up_right_7
+  LDA #$43
+  STA corner_down_right_7
+  LDA #$36
+  STA s8_middle_1_right
+  STA s8_middle_2_right
+  STA s8_middle_3_right
+  STA s8_middle_4_right
+  STA s8_middle_5_right
+  STA s8_middle_6_right
+  STA s8_middle_7_right
+  STA s8_middle_8_right
+  STA s8_middle_9_right
+  STA s8_middle_10_right
+  STA s8_middle_11_right
+  STA s8_middle_12_right
+  STA s8_middle_13_right
+  STA s8_middle_14_right
+  LDA #$56
+  STA s9_middle_1_right
+  STA sA_middle_2_right
+  STA sB_middle_3_right
+  STA sC_middle_4_right
+  STA sD_middle_5_right
+  LDA #$57
+  STA s9_middle_16_right
+  STA sA_middle_17_right
+  STA sB_middle_18_right
+  STA sC_middle_19_right
+  STA sD_middle_20_right
+  JMP @end
+  @flatSurface2:
+  LDA #$9E
+  STA sE_middle_6_right
+  LDA #$A0
+  STA sE_middle_21_right
+  LDA #$52
+  STA corner_up_right_7
+  STA s9_middle_1_right
+  STA sA_middle_2_right
+  STA sB_middle_3_right
+  STA sC_middle_4_right
+  STA sD_middle_5_right
+  LDA #$53
+  STA corner_down_right_7
+  STA s9_middle_16_right
+  STA sA_middle_17_right
+  STA sB_middle_18_right
+  STA sC_middle_19_right
+  STA sD_middle_20_right
+  LDA #$24
+  STA s8_middle_1_right
+  STA s8_middle_2_right
+  STA s8_middle_3_right
+  STA s8_middle_4_right
+  STA s8_middle_5_right
+  STA s8_middle_6_right
+  STA s8_middle_7_right
+  STA s8_middle_8_right
+  STA s8_middle_9_right
+  STA s8_middle_10_right
+  STA s8_middle_11_right
+  STA s8_middle_12_right
+  STA s8_middle_13_right
+  STA s8_middle_14_right
+
+  JMP @end
+  @notbiggerthan1:
+  CMP #$00
+  BNE @biggerthan0
+  JMP @end
+  @biggerthan0:
+  LDA rayLength
+  CMP #$01
+  BEQ @flatSurface
+
+
+  LDA #$45
+  STA corner_up_right_1
+  LDA #$43
+  STA corner_down_right_1
+  LDA #$36
+  STA sE_middle_1_right
+  STA sE_middle_2_right
+  STA sE_middle_3_right
+  STA sE_middle_4_right
+  STA sE_middle_5_right
+  STA sE_middle_6_right
+  STA sE_middle_7_right
+  STA sE_middle_8_right
+  STA sE_middle_9_right
+  STA sE_middle_10_right
+  STA sE_middle_11_right
+  STA sE_middle_12_right
+  STA sE_middle_13_right
+  STA sE_middle_14_right
+  STA sE_middle_15_right
+  STA sE_middle_16_right
+  STA sE_middle_17_right
+  STA sE_middle_18_right
+  STA sE_middle_19_right
+  STA sE_middle_20_right
+  STA sE_middle_21_right
+  STA sE_middle_22_right
+  STA sE_middle_23_right
+  STA sE_middle_24_right
+  STA sE_middle_25_right
+  STA sE_middle_26_right
+  JMP @end
+  @flatSurface:
+  LDA #$24
+  STA sE_middle_1_right
+  STA sE_middle_2_right
+  STA sE_middle_3_right
+  STA sE_middle_4_right
+  STA sE_middle_5_right
+  STA sE_middle_6_right
+  STA sE_middle_7_right
+  STA sE_middle_8_right
+  STA sE_middle_9_right
+  STA sE_middle_10_right
+  STA sE_middle_11_right
+  STA sE_middle_12_right
+  STA sE_middle_13_right
+  STA sE_middle_14_right
+  STA sE_middle_15_right
+  STA sE_middle_16_right
+  STA sE_middle_17_right
+  STA sE_middle_18_right
+  STA sE_middle_19_right
+  STA sE_middle_20_right
+  STA sE_middle_21_right
+  STA sE_middle_22_right
+  STA sE_middle_23_right
+  STA sE_middle_24_right
+  STA sE_middle_25_right
+  STA sE_middle_26_right
+  LDA #$56
+  STA corner_up_right_1
+  LDA #$57
+  STA corner_down_right_1
+
+  @end:
+  INX
+  CPX #$05
+  BEQ @return
+  JMP @loop
+  @return:
+  RTS
+
+
+
 paletteData:
   .BYTE $0F,$2A,$10,$30,  $3D,$1D,$00,$30,  $36,$26,$16,$06,  $3A,$2A,$1A,$0A   ;;background palette
   .BYTE $0F,$2A,$10,$30,  $3D,$1D,$00,$30,  $36,$26,$16,$06,  $3A,$2A,$1A,$0A   ;;sprite palette
@@ -4059,7 +6137,7 @@ paletteData:
 Maze:
   .BYTE %11111111,%11111111,%11111111,%11111111 ;; bitmap of maze
   .BYTE %10100000,%00100001,%00000000,%00000001 
-  .BYTE %10101010,%10101101,%01101110,%11110111
+  .BYTE %10101010,%10101101,%01101110,%11110111 ;;  
   .BYTE %10001010,%10101001,%01000100,%01000101
   .BYTE %10101000,%10001100,%00010001,%00010101
   .BYTE %10101110,%11111101,%11111111,%01111101
